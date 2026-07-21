@@ -200,6 +200,7 @@ export interface Couple {
   name?: string;
   bio?: string;
   coverImage?: string;
+  coverCarousel?: string[];
   startDate?: string;
   userIds: string[];
 }

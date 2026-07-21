@@ -34,11 +34,17 @@ import {
   PublicUser
 } from '../types'
 import { useEffect, useMemo, useState } from 'react'
-import { aiService, ratingService, userService } from '../services/api'
+import {
+  aiService,
+  ratingService,
+  userService,
+  coupleService
+} from '../services/api'
 import { useToast } from '../components/Toast'
 import { getRemainingDays } from '../lib/utils'
 import { useModalHistory } from '../hooks/useModalHistory'
 import Stack from '../components/Stack'
+import CoverCarousel from '../components/CoverCarousel'
 import { AppImage } from '../components/AppImage'
 import { buildImageUrl } from '../lib/imageUrl'
 
@@ -165,6 +171,7 @@ export default function Home({
   const [loveAiResult, setLoveAiResult] = useState('')
   const [loveAiLoading, setLoveAiLoading] = useState(false)
   const [loveAiOpen, setLoveAiOpen] = useState(false)
+  const [coverCarousel, setCoverCarousel] = useState<string[] | null>(null)
   const partner = user.partner
   const userAvatar =
     user.avatar ||
@@ -202,6 +209,11 @@ export default function Home({
     setMomentStatus(user.momentStatus || 'missing')
     setMomentStatusText(user.momentStatusText || '')
   }, [user.momentStatus, user.momentStatusText])
+
+  // 封面轮播图数据
+  useEffect(() => {
+    setCoverCarousel(couple?.coverCarousel ?? null)
+  }, [couple?.coverCarousel])
 
   const stats = {
     days: couple?.startDate
@@ -526,19 +538,14 @@ export default function Home({
           {/* Couple Card */}
           <section className="mb-5 lg:mb-6">
             <div className="relative h-[210px] overflow-hidden rounded-[30px] bg-gradient-to-br from-pink-100 via-white to-amber-100 shadow-lg shadow-pink-100/50 lg:h-[300px] lg:rounded-[34px]">
-              {couple?.coverImage && (
-                <AppImage
-                  src={couple.coverImage}
-                  className="h-full w-full object-cover"
-                  alt="Cover"
-                  width={960}
-                  height={540}
-                  crop="cover"
-                  priority
-                />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-gray-950/80 via-gray-950/20 to-transparent" />
-              <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-[11px] font-black tracking-[0.16em] text-pink-500 shadow-lg shadow-gray-900/10">
+              <CoverCarousel
+                initialImages={coverCarousel}
+                onUpdateCouple={(updated) => {
+                  setCoverCarousel(updated.coverCarousel ?? null)
+                  coupleService.getCoverCarousel()
+                }}
+              />
+              <div className="absolute left-4 top-4 z-10 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-[11px] font-black tracking-[0.16em] text-pink-500 shadow-lg shadow-gray-900/10">
                 <Heart
                   size={15}
                   className="fill-pink-500"
@@ -547,7 +554,7 @@ export default function Home({
               </div>
               <button
                 onClick={() => onNavigate('profile')}
-                className="absolute right-3 top-3 rounded-[22px] bg-white px-3.5 py-2.5 text-center shadow-lg shadow-gray-900/10 transition-transform hover:scale-105 active:scale-95"
+                className="absolute right-3 top-3 z-10 rounded-[22px] bg-white px-3.5 py-2.5 text-center shadow-lg shadow-gray-900/10 transition-transform hover:scale-105 active:scale-95"
                 title="点击修改纪念日"
               >
                 {couple?.startDate ? (
@@ -566,7 +573,7 @@ export default function Home({
                   </span>
                 )}
               </button>
-              <div className="absolute bottom-5 left-5 right-5 text-white">
+              <div className="absolute bottom-5 left-5 right-5 z-10 text-white">
                 <div className="mb-2 flex items-center gap-2 text-pink-200">
                   <Heart
                     size={16}

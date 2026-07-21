@@ -409,6 +409,7 @@ function serializeCouple(couple: any) {
     name: couple.name ?? undefined,
     bio: couple.bio ?? undefined,
     coverImage: couple.coverImage ?? undefined,
+    coverCarousel: couple.coverCarousel ?? undefined,
     startDate: formatDate(couple.startDate),
     userIds: [couple.userAId, couple.userBId]
   }
@@ -2397,6 +2398,77 @@ router.put('/couple', authenticate, async (req, res) => {
   res.json(serializeCouple(updated))
 })
 
+// 封面轮播图：GET 读取当前配置，PUT 更新配置（存储相册图片的 src 路径数组）。
+router.get('/couple/cover-carousel', authenticate, async (req, res) => {
+  const currentUser = (req as AuthenticatedRequest).user
+  if (!currentUser.partnerId)
+    return res.status(404).json({ message: 'No relationship found' })
+  const couple = await findCurrentCouple(currentUser.id)
+  if (!couple)
+    return res.status(404).json({ message: 'Relationship not found' })
+  const carousel =
+    Array.isArray(couple.coverCarousel) && couple.coverCarousel.length > 0
+      ? couple.coverCarousel.map((src: any) => String(src))
+      : undefined
+  res.json({ coverCarousel: carousel })
+})
+
+router.put('/couple/cover-carousel', authenticate, async (req, res) => {
+  const currentUser = (req as AuthenticatedRequest).user
+  if (!currentUser.partnerId)
+    return res.status(400).json({ message: 'No relationship found' })
+
+  const couple = await findCurrentCouple(currentUser.id)
+  if (!couple)
+    return res.status(404).json({ message: 'Relationship not found' })
+
+  const { coverCarousel } = req.body
+  // 校验输入：最多 10 张，每张是有效字符串。
+  let carousel: string[] | null = null
+  if (Array.isArray(coverCarousel)) {
+    if (coverCarousel.length > 10)
+      return res.status(400).json({ message: '最多选择 10 张图片' })
+    const cleaned = coverCarousel
+      .map((src: unknown) => (typeof src === 'string' ? src.trim() : null))
+      .filter(Boolean) as string[]
+    if (cleaned.length > 10)
+      return res.status(400).json({ message: '最多选择 10 张图片' })
+    carousel = cleaned.length > 0 ? cleaned : null
+  } else if (coverCarousel !== undefined && coverCarousel !== null) {
+    return res.status(400).json({ message: 'coverCarousel 必须是数组' })
+  }
+
+  const data: any = {}
+  if (carousel !== undefined) data.coverCarousel = carousel
+  if (Object.keys(data).length === 0) {
+    return res.json(serializeCouple(couple))
+  }
+  const updated = await prisma.couple.update({
+    where: { id: couple.id },
+    data
+  })
+  res.json(serializeCouple(updated))
+})
+
+// 封面候选图：查询相册中可选的图片（图片类型，按时间倒序），前端从中选择轮播图。
+router.get('/couple/cover-candidates', authenticate, async (req, res) => {
+  const currentUser = (req as AuthenticatedRequest).user
+  const where = albumWhereFor(currentUser)
+  const images = await prisma.albumImage.findMany({
+    where: { ...where, mediaType: { not: 'video' } },
+    select: { id: true, src: true, title: true, date: true },
+    orderBy: [{ date: 'desc' }, { id: 'desc' }]
+  })
+  res.json({
+    images: images.map((img) => ({
+      id: img.id,
+      src: img.src,
+      title: img.title || '',
+      date: formatDate(img.date)
+    }))
+  })
+})
+
 // AI 配置（单行表）：GET 读当前配置，PUT 写入配置，启用的 provider 配置会覆盖 .env 默认值。
 const AI_CONFIG_SINGLETON_ID = 'singleton'
 
@@ -2483,11 +2555,9 @@ router.get('/ai/models/:provider', authenticate, async (req, res) => {
       const r = await fetch(`${baseUrl}/models`, { headers })
       if (!r.ok) {
         const text = await r.text().catch(() => '')
-        return res
-          .status(r.status)
-          .json({
-            message: `Failed to fetch models: ${r.status} ${text.slice(0, 200)}`
-          })
+        return res.status(r.status).json({
+          message: `Failed to fetch models: ${r.status} ${text.slice(0, 200)}`
+        })
       }
       const data: any = await r.json()
       const list: string[] = Array.isArray(data?.data)
@@ -2506,11 +2576,9 @@ router.get('/ai/models/:provider', authenticate, async (req, res) => {
       )
       if (!r.ok) {
         const text = await r.text().catch(() => '')
-        return res
-          .status(r.status)
-          .json({
-            message: `Failed to fetch models: ${r.status} ${text.slice(0, 200)}`
-          })
+        return res.status(r.status).json({
+          message: `Failed to fetch models: ${r.status} ${text.slice(0, 200)}`
+        })
       }
       const data: any = await r.json()
       const list: string[] = Array.isArray(data?.models)

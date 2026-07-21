@@ -48,8 +48,9 @@ model Couple {
   id         String    @id @default(cuid())
   name       String?
   bio        String?   @db.Text
-  coverImage String?   @db.Text
-  startDate  DateTime? @db.Date
+  coverImage     String?   @db.Text
+  coverCarousel  Json?
+  startDate      DateTime? @db.Date
   userAId    String
   userBId    String
   createdAt  DateTime  @default(now())

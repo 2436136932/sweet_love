@@ -302,6 +302,35 @@ export const coupleService = {
     })
     await ensureOk(res, 'Failed to update couple profile')
     return res.json()
+  },
+  async getCoverCarousel(): Promise<{ coverCarousel?: string[] }> {
+    const res = await fetch(`${API_BASE}/couple/cover-carousel`, {
+      headers: getHeaders()
+    })
+    if (res.status === 404) return {}
+    await ensureOk(res, 'Failed to fetch cover carousel')
+    return res.json()
+  },
+  async updateCoverCarousel(
+    coverCarousel: string[] | null
+  ): Promise<{ coverCarousel?: string[] }> {
+    const res = await fetch(`${API_BASE}/couple/cover-carousel`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify({ coverCarousel })
+    })
+    await ensureOk(res, 'Failed to update cover carousel')
+    return res.json()
+  },
+  async getCoverCandidates(): Promise<
+    Array<{ id: string; src: string; title: string; date: string }>
+  > {
+    const res = await fetch(`${API_BASE}/couple/cover-candidates`, {
+      headers: getHeaders()
+    })
+    await ensureOk(res, 'Failed to fetch cover candidates')
+    const data = await res.json()
+    return data.images || []
   }
 }
 

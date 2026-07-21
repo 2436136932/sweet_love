@@ -1,3 +1,4 @@
+
 -- ============================================================================
 -- sweet_love 数据库初始化脚本（MySQL）
 -- 合并自 prisma\migrations 下所有迁移，适用于全新部署。
@@ -38,6 +39,7 @@ CREATE TABLE `couples` (
   `name` VARCHAR(191) NULL,
   `bio` TEXT NULL,
   `coverImage` TEXT NULL,
+  `coverCarousel` JSON NULL COMMENT '轮播封面图片数组，存储相册图片的 src 路径',
   `startDate` DATE NULL,
   `userAId` VARCHAR(191) NOT NULL,
   `userBId` VARCHAR(191) NOT NULL,
