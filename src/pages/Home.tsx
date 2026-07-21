@@ -16,7 +16,9 @@ import {
   BatteryLow,
   Laptop,
   X,
-  Video
+  Video,
+  Bell,
+  Trash2
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import {
@@ -38,7 +40,9 @@ import {
   aiService,
   ratingService,
   userService,
-  coupleService
+  coupleService,
+  notificationListService,
+  NotificationItem
 } from '../services/api'
 import { useToast } from '../components/Toast'
 import { getRemainingDays } from '../lib/utils'
@@ -172,6 +176,9 @@ export default function Home({
   const [loveAiLoading, setLoveAiLoading] = useState(false)
   const [loveAiOpen, setLoveAiOpen] = useState(false)
   const [coverCarousel, setCoverCarousel] = useState<string[] | null>(null)
+  const [notifOpen, setNotifOpen] = useState(false)
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
   const partner = user.partner
   const userAvatar =
     user.avatar ||
@@ -214,6 +221,99 @@ export default function Home({
   useEffect(() => {
     setCoverCarousel(couple?.coverCarousel ?? null)
   }, [couple?.coverCarousel])
+
+  // 加载通知
+  useEffect(() => {
+    loadNotifications()
+  }, [])
+
+  const loadNotifications = async () => {
+    try {
+      const data = await notificationListService.getAll()
+      setNotifications(data.notifications)
+      setUnreadCount(data.unreadCount)
+    } catch (err) {
+      console.error('Failed to load notifications', err)
+    }
+  }
+
+  const handleNotifOpen = async () => {
+    setNotifOpen(true)
+    // 自动检查新提醒
+    try {
+      await notificationListService.check()
+      await loadNotifications()
+    } catch (err) {
+      console.error('Failed to check notifications', err)
+    }
+  }
+
+  const handleMarkRead = async (id: string) => {
+    try {
+      await notificationListService.markRead(id)
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+      )
+      setUnreadCount((prev) => Math.max(0, prev - 1))
+    } catch (err) {
+      console.error('Failed to mark read', err)
+    }
+  }
+
+  const handleMarkAllRead = async () => {
+    try {
+      await notificationListService.markAllRead()
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+      setUnreadCount(0)
+    } catch (err) {
+      console.error('Failed to mark all read', err)
+    }
+  }
+
+  const handleDeleteNotif = async (id: string) => {
+    try {
+      await notificationListService.delete(id)
+      setNotifications((prev) => prev.filter((n) => n.id !== id))
+      setUnreadCount((prev) =>
+        Math.max(
+          0,
+          prev - (notifications.find((n) => n.id === id)?.read ? 0 : 1)
+        )
+      )
+    } catch (err) {
+      console.error('Failed to delete notification', err)
+    }
+  }
+
+  const formatNotifTime = (dateStr: string) => {
+    const date = new Date(dateStr)
+    const now = new Date()
+    const diff = now.getTime() - date.getTime()
+    const minutes = Math.floor(diff / 60000)
+    const hours = Math.floor(diff / 3600000)
+    const days = Math.floor(diff / 86400000)
+    if (minutes < 1) return '刚刚'
+    if (minutes < 60) return `${minutes}分钟前`
+    if (hours < 24) return `${hours}小时前`
+    if (days < 7) return `${days}天前`
+    return date.toLocaleDateString('zh-CN', {
+      month: 'numeric',
+      day: 'numeric'
+    })
+  }
+
+  const getNotifIcon = (type: string) => {
+    switch (type) {
+      case 'anniversary':
+        return '🎉'
+      case 'daily_rating':
+        return '💕'
+      case 'todo':
+        return '📋'
+      default:
+        return '🔔'
+    }
+  }
 
   const stats = {
     days: couple?.startDate
@@ -519,18 +619,36 @@ export default function Home({
             {couple?.name || 'SweetLover'}
           </h1>
         </div>
-        <button
-          type="button"
-          aria-label="打开留言"
-          onClick={() => onNavigate('messages')}
-          className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-white/60 bg-white/70 text-gray-600 shadow-sm backdrop-blur-sm"
-        >
-          <MessageCircle
-            size={20}
-            className="text-gray-600"
-          />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full border border-white" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-label="打开通知"
+            onClick={handleNotifOpen}
+            className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-white/60 bg-white/70 text-gray-600 shadow-sm backdrop-blur-sm"
+          >
+            <Bell
+              size={20}
+              className="text-gray-600"
+            />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white border-2 border-white">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            aria-label="打开留言"
+            onClick={() => onNavigate('messages')}
+            className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-white/60 bg-white/70 text-gray-600 shadow-sm backdrop-blur-sm"
+          >
+            <MessageCircle
+              size={20}
+              className="text-gray-600"
+            />
+            <span className="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full border border-white" />
+          </button>
+        </div>
       </header>
 
       <div className="lg:grid lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)] lg:items-start lg:gap-6">
@@ -573,18 +691,18 @@ export default function Home({
                   </span>
                 )}
               </button>
-              <div className="absolute bottom-5 left-5 right-5 z-10 text-on-accent">
-                <div className="mb-2 flex items-center gap-2 opacity-70">
+              <div className="absolute bottom-5 left-5 right-5 z-10 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+                <div className="mb-2 flex items-center gap-2 opacity-90">
                   <Heart
                     size={16}
                     className="fill-current"
                   />
                   <Sparkles size={11} />
                 </div>
-                <p className="truncate text-3xl font-black leading-tight drop-shadow-sm lg:text-4xl">
+                <p className="truncate text-3xl font-black leading-tight lg:text-4xl">
                   {couple?.name || 'SweetLover'}
                 </p>
-                <p className="mt-1.5 text-sm font-bold opacity-90">
+                <p className="mt-1.5 text-sm font-bold opacity-95">
                   第{stats.days}天 · 一直甜甜的
                 </p>
               </div>
@@ -1060,12 +1178,27 @@ export default function Home({
                   不是普通待办，是今天可以一起完成的小互动
                 </p>
               </div>
-              <button
-                onClick={() => onNavigate('todo')}
-                className="flex min-h-10 shrink-0 items-center gap-1 rounded-full bg-white/70 px-3 text-[10px] font-bold uppercase tracking-widest text-pink-500"
-              >
-                愿望库 <ChevronRight size={12} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  aria-label="打开通知"
+                  onClick={handleNotifOpen}
+                  className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-gray-100 bg-white text-gray-500 shadow-sm hover:bg-gray-50 transition-colors"
+                >
+                  <Bell size={16} />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 flex h-4.5 w-4.5 min-w-[18px] items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white border-2 border-white px-1">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => onNavigate('todo')}
+                  className="flex min-h-10 shrink-0 items-center gap-1 rounded-full bg-white/70 px-3 text-[10px] font-bold uppercase tracking-widest text-pink-500"
+                >
+                  愿望库 <ChevronRight size={12} />
+                </button>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               {dailyLoveTasks.map((task, index) => {
@@ -1265,6 +1398,101 @@ export default function Home({
           </section>
         </div>
       </div>
+
+      {/* Notification Panel */}
+      {notifOpen && (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            className="bg-white w-full max-w-md rounded-[40px] p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-xl font-black text-gray-800 flex items-center gap-2">
+                <Bell
+                  size={18}
+                  className="text-accent"
+                />{' '}
+                通知提醒
+              </h3>
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <button
+                    onClick={handleMarkAllRead}
+                    className="text-xs font-bold text-accent hover:underline"
+                  >
+                    全部已读
+                  </button>
+                )}
+                <button
+                  onClick={() => setNotifOpen(false)}
+                  className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 hover:bg-gray-100 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {notifications.length === 0 ? (
+              <div className="py-16 text-center">
+                <div className="text-4xl mb-3">🔔</div>
+                <p className="text-sm font-bold text-gray-400">暂无通知</p>
+                <p className="text-xs text-gray-300 mt-1">
+                  纪念日、打卡、待办提醒会出现在这里
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {notifications.map((notif) => (
+                  <div
+                    key={notif.id}
+                    onClick={() => !notif.read && handleMarkRead(notif.id)}
+                    className={`relative rounded-2xl border p-4 transition-all ${
+                      notif.read
+                        ? 'border-gray-100 bg-gray-50/50'
+                        : 'border-accent/20 bg-accent/5 cursor-pointer'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="text-xl shrink-0">
+                        {getNotifIcon(notif.type)}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p
+                          className={`text-sm font-black ${
+                            notif.read ? 'text-gray-500' : 'text-gray-800'
+                          }`}
+                        >
+                          {notif.title}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1 leading-relaxed">
+                          {notif.message}
+                        </p>
+                        <p className="text-[10px] text-gray-300 mt-2">
+                          {formatNotifTime(notif.createdAt)}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeleteNotif(notif.id)
+                        }}
+                        className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                    {!notif.read && (
+                      <span className="absolute top-3 right-3 w-2 h-2 bg-accent rounded-full" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        </div>
+      )}
     </div>
   )
 }

@@ -654,7 +654,7 @@ export default function MessageBoard({
                 type="button"
                 onClick={generateAiMessage}
                 disabled={aiLoading}
-                className="mt-2 flex min-h-10 w-full items-center justify-center gap-2 rounded-2xl bg-gray-900 text-xs font-black text-white hover:bg-gray-800 transition-colors disabled:opacity-50"
+                className="mt-2 flex min-h-10 w-full items-center justify-center gap-2 rounded-2xl bg-accent text-xs font-black text-on-accent hover:bg-accent/90 transition-colors disabled:opacity-50"
               >
                 {aiLoading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <Sparkles size={14} />}
                 生成文案

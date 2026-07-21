@@ -40,6 +40,7 @@ model User {
   kitchenCookCheckins KitchenCookCheckin[]
   periodRecordsCreated PeriodRecord[]
   periodDailyLogsCreated PeriodDailyLog[]
+  notifications        Notification[]
 
   @@map("users")
 }
@@ -51,6 +52,7 @@ model Couple {
   coverImage     String?   @db.Text
   coverCarousel  Json?
   themeConfig    Json?
+  notificationConfig Json?
   startDate      DateTime? @db.Date
   userAId    String
   userBId    String
@@ -67,6 +69,7 @@ model Couple {
   periodRecords PeriodRecord[]
   periodDailyLogs PeriodDailyLog[]
   periodSettings PeriodSettings?
+  notifications Notification[]
 
   @@index([userAId])
   @@index([userBId])
@@ -463,4 +466,22 @@ model AiConfig {
   updatedAt DateTime @updatedAt
 
   @@map("ai_config")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  type      String   // anniversary | daily_rating | todo
+  title     String
+  message   String   @db.Text
+  read      Boolean  @default(false)
+  userId    String
+  coupleId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  couple Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([coupleId])
+  @@map("notifications")
 }

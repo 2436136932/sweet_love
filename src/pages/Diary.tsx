@@ -606,7 +606,7 @@ export default function Diary({
                     type="button"
                     onClick={handleAiPolish}
                     disabled={aiLoading || !content.trim()}
-                    className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-gray-900 text-xs font-black text-white shadow-lg shadow-gray-200 disabled:opacity-50"
+                    className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-accent text-xs font-black text-on-accent shadow-lg shadow-accent/20 disabled:opacity-50"
                   >
                     {aiLoading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <Sparkles size={14} />}
                     AI 润色草稿

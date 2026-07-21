@@ -2514,6 +2514,607 @@ router.put('/couple/theme', authenticate, async (req, res) => {
   res.json({ themeConfig: { enabled: true, color: hex } })
 })
 
+// 通知提醒配置：GET 读当前配置，PUT 更新（存储为 JSON）。
+// 配置结构：
+// {
+//   anniversaryReminder: { enabled: boolean, daysBefore: number },
+//   dailyRating: { enabled: boolean, time: string (HH:mm) },
+//   todoReminder: { enabled: boolean }
+// }
+router.get('/couple/notification-config', authenticate, async (req, res) => {
+  const currentUser = (req as AuthenticatedRequest).user
+  if (!currentUser.partnerId)
+    return res.status(404).json({ message: 'No relationship found' })
+  const couple = await findCurrentCouple(currentUser.id)
+  if (!couple)
+    return res.status(404).json({ message: 'Relationship not found' })
+  const defaultConfig = {
+    anniversaryReminder: { enabled: true, daysBefore: 3 },
+    dailyRating: { enabled: true, time: '20:00' },
+    todoReminder: { enabled: true }
+  }
+  const config = (couple.notificationConfig as any) || defaultConfig
+  res.json(config)
+})
+
+router.put('/couple/notification-config', authenticate, async (req, res) => {
+  const currentUser = (req as AuthenticatedRequest).user
+  if (!currentUser.partnerId)
+    return res.status(404).json({ message: 'No relationship found' })
+  const couple = await findCurrentCouple(currentUser.id)
+  if (!couple)
+    return res.status(404).json({ message: 'Relationship not found' })
+  const { anniversaryReminder, dailyRating, todoReminder } = req.body
+
+  const data: any = {
+    notificationConfig: {
+      anniversaryReminder: {
+        enabled: Boolean(anniversaryReminder?.enabled ?? true),
+        daysBefore: Number(anniversaryReminder?.daysBefore ?? 3)
+      },
+      dailyRating: {
+        enabled: Boolean(dailyRating?.enabled ?? true),
+        time: String(dailyRating?.time ?? '20:00')
+      },
+      todoReminder: {
+        enabled: Boolean(todoReminder?.enabled ?? true)
+      }
+    }
+  }
+
+  await prisma.couple.update({
+    where: { id: couple.id },
+    data
+  })
+  res.json(data.notificationConfig)
+})
+
+// 通知提醒：GET 获取用户的通知列表，POST 标记已读，DELETE 删除通知
+router.get('/notifications', authenticate, async (req, res) => {
+  const currentUser = (req as AuthenticatedRequest).user
+  const notifications = await prisma.notification.findMany({
+    where: { userId: currentUser.id },
+    orderBy: { createdAt: 'desc' },
+    take: 50
+  })
+  const unreadCount = await prisma.notification.count({
+    where: { userId: currentUser.id, read: false }
+  })
+  res.json({ notifications, unreadCount })
+})
+
+router.post('/notifications/:id/read', authenticate, async (req, res) => {
+  const { id } = req.params
+  await prisma.notification.update({
+    where: { id },
+    data: { read: true }
+  })
+  res.json({ success: true })
+})
+
+router.post('/notifications/read-all', authenticate, async (req, res) => {
+  const currentUser = (req as AuthenticatedRequest).user
+  await prisma.notification.updateMany({
+    where: { userId: currentUser.id, read: false },
+    data: { read: true }
+  })
+  res.json({ success: true })
+})
+
+router.delete('/notifications/:id', authenticate, async (req, res) => {
+  const { id } = req.params
+  await prisma.notification.delete({ where: { id } })
+  res.json({ success: true })
+})
+
+// 自动检查并生成提醒（纪念日、每日打卡、待办）
+router.post('/notifications/check', authenticate, async (req, res) => {
+  const currentUser = (req as AuthenticatedRequest).user
+  if (!currentUser.partnerId) {
+    return res.status(404).json({ message: 'No relationship found' })
+  }
+
+  const couple = await findCurrentCouple(currentUser.id)
+  if (!couple) {
+    return res.status(404).json({ message: 'Relationship not found' })
+  }
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const created: string[] = []
+
+  // 1. 检查纪念日提醒
+  const anniversaries = await prisma.anniversary.findMany({
+    where: { userId: { in: [currentUser.id, currentUser.partnerId!] } }
+  })
+
+  for (const ann of anniversaries) {
+    const annDate = new Date(ann.date)
+    annDate.setHours(0, 0, 0, 0)
+    const diffDays = Math.ceil((annDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+
+    if (diffDays >= 0 && diffDays <= 3) {
+      const existing = await prisma.notification.findFirst({
+        where: {
+          userId: currentUser.id,
+          type: 'anniversary',
+          title: { contains: ann.title },
+          createdAt: { gte: today }
+        }
+      })
+
+      if (!existing) {
+        await prisma.notification.create({
+          data: {
+            type: 'anniversary',
+            title: `纪念日提醒：${ann.title}`,
+            message: diffDays === 0 ? `今天是${ann.title}！` : `距离${ann.title}还有${diffDays}天`,
+            userId: currentUser.id,
+            coupleId: couple.id
+          }
+        })
+        created.push(`anniversary:${ann.title}`)
+      }
+    }
+  }
+
+  // 2. 检查每日打卡提醒（如果配置了时间且当前时间已过）
+  const notifConfig = couple.notificationConfig as any
+  if (notifConfig?.dailyRating?.enabled) {
+    const [hour, minute] = notifConfig.dailyRating.time.split(':').map(Number)
+    const reminderTime = new Date(today)
+    reminderTime.setHours(hour, minute, 0, 0)
+
+    if (today >= reminderTime) {
+      const existing = await prisma.notification.findFirst({
+        where: {
+          userId: currentUser.id,
+          type: 'daily_rating',
+          createdAt: { gte: today }
+        }
+      })
+
+      if (!existing) {
+        await prisma.notification.create({
+          data: {
+            type: 'daily_rating',
+            title: '每日打卡提醒',
+            message: '别忘了给今天的恋爱打分哦～',
+            userId: currentUser.id,
+            coupleId: couple.id
+          }
+        })
+        created.push('daily_rating')
+      }
+    }
+  }
+
+  // 3. 检查待办提醒
+  if (notifConfig?.todoReminder?.enabled) {
+    const todos = await prisma.todo.findMany({
+      where: {
+        userId: currentUser.id,
+        completed: false,
+        targetDate: { lte: today }
+      }
+    })
+
+    for (const todo of todos) {
+      const existing = await prisma.notification.findFirst({
+        where: {
+          userId: currentUser.id,
+          type: 'todo',
+          title: { contains: todo.title },
+          createdAt: { gte: today }
+        }
+      })
+
+      if (!existing) {
+        await prisma.notification.create({
+          data: {
+            type: 'todo',
+            title: `待办提醒：${todo.title}`,
+            message: todo.description || '有待办事项需要完成',
+            userId: currentUser.id,
+            coupleId: couple.id
+          }
+        })
+        created.push(`todo:${todo.title}`)
+      }
+    }
+  }
+
+  res.json({ created })
+})
+
+// ==================== 隐私安全 ====================
+
+// 1. 个人信息查看
+router.get('/privacy/personal-info', authenticate, async (req, res) => {
+  const currentUser = (req as AuthenticatedRequest).user
+  const couple = await findCurrentCouple(currentUser.id)
+
+  // 获取用户所有数据
+  const [diaries, todos, messages, ratings, anniversaries, albumImages, notifications] = await Promise.all([
+    prisma.diary.findMany({ where: { userId: currentUser.id }, orderBy: { createdAt: 'desc' } }),
+    prisma.todo.findMany({ where: { userId: currentUser.id }, orderBy: { createdAt: 'desc' } }),
+    prisma.message.findMany({ where: { userId: currentUser.id }, orderBy: { createdAt: 'desc' }, take: 100 }),
+    prisma.dailyRating.findMany({ where: { userId: currentUser.id }, orderBy: { date: 'desc' } }),
+    prisma.anniversary.findMany({ where: { userId: currentUser.id } }),
+    prisma.albumImage.findMany({ where: { userId: currentUser.id }, orderBy: { createdAt: 'desc' } }),
+    prisma.notification.findMany({ where: { userId: currentUser.id }, orderBy: { createdAt: 'desc' } })
+  ])
+
+  res.json({
+    user: {
+      id: currentUser.id,
+      username: currentUser.username,
+      email: currentUser.email,
+      bio: currentUser.bio,
+      avatar: currentUser.avatar,
+      inviteCode: currentUser.inviteCode,
+      createdAt: currentUser.createdAt
+    },
+    couple: couple ? {
+      id: couple.id,
+      name: couple.name,
+      startDate: couple.startDate,
+      bio: couple.bio
+    } : null,
+    stats: {
+      diaries: diaries.length,
+      todos: todos.length,
+      messages: messages.length,
+      ratings: ratings.length,
+      anniversaries: anniversaries.length,
+      albumImages: albumImages.length,
+      notifications: notifications.length
+    },
+    diaries,
+    todos,
+    messages,
+    ratings,
+    anniversaries,
+    albumImages: albumImages.map(img => ({ id: img.id, src: img.src, caption: img.caption, createdAt: img.createdAt })),
+    notifications
+  })
+})
+
+// 2. 修改密码
+router.post('/privacy/change-password', authenticate, async (req, res) => {
+  const currentUser = (req as AuthenticatedRequest).user
+  const { oldPassword, newPassword, confirmPassword } = req.body
+
+  if (!oldPassword || !newPassword || !confirmPassword) {
+    return res.status(400).json({ message: '请填写所有密码字段' })
+  }
+
+  if (newPassword !== confirmPassword) {
+    return res.status(400).json({ message: '新密码和确认密码不一致' })
+  }
+
+  if (newPassword.length < 8) {
+    return res.status(400).json({ message: '密码长度至少 8 位' })
+  }
+
+  // 密码强度检测：大小写字母 + 数字 + 特殊符号
+  const hasUpper = /[A-Z]/.test(newPassword)
+  const hasLower = /[a-z]/.test(newPassword)
+  const hasNumber = /[0-9]/.test(newPassword)
+  const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(newPassword)
+
+  if (!hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+    return res.status(400).json({
+      message: '密码必须包含大写字母、小写字母、数字和特殊符号'
+    })
+  }
+
+  // 验证原密码
+  const user = await prisma.user.findUnique({ where: { id: currentUser.id } })
+  if (!user) {
+    return res.status(404).json({ message: '用户不存在' })
+  }
+
+  const valid = await bcrypt.compare(oldPassword, user.password)
+  if (!valid) {
+    return res.status(400).json({ message: '原密码错误' })
+  }
+
+  // 加密新密码
+  const hashedPassword = await bcrypt.hash(newPassword, 10)
+  await prisma.user.update({
+    where: { id: currentUser.id },
+    data: { password: hashedPassword }
+  })
+
+  res.json({ message: '密码修改成功' })
+})
+
+// 3. 数据导出
+router.get('/privacy/export-data', authenticate, async (req, res) => {
+  const currentUser = (req as AuthenticatedRequest).user
+  const couple = await findCurrentCouple(currentUser.id)
+
+  // 收集所有数据
+  const [diaries, todos, messages, ratings, anniversaries, albumImages, notifications, mealOrders, kitchenRecipes, periodRecords] = await Promise.all([
+    prisma.diary.findMany({ where: { userId: currentUser.id }, orderBy: { createdAt: 'desc' } }),
+    prisma.todo.findMany({ where: { userId: currentUser.id }, orderBy: { createdAt: 'desc' } }),
+    prisma.message.findMany({ where: { userId: currentUser.id }, orderBy: { createdAt: 'desc' } }),
+    prisma.dailyRating.findMany({ where: { userId: currentUser.id }, orderBy: { date: 'desc' } }),
+    prisma.anniversary.findMany({ where: { userId: currentUser.id } }),
+    prisma.albumImage.findMany({ where: { userId: currentUser.id }, orderBy: { createdAt: 'desc' } }),
+    prisma.notification.findMany({ where: { userId: currentUser.id }, orderBy: { createdAt: 'desc' } }),
+    couple ? prisma.mealOrderItem.findMany({ where: { coupleId: couple.id }, orderBy: { date: 'desc' } }) : [],
+    couple ? prisma.kitchenRecipe.findMany({ where: { coupleId: couple.id } }) : [],
+    couple ? prisma.periodRecord.findMany({ where: { coupleId: couple.id }, orderBy: { startDate: 'desc' } }) : []
+  ])
+
+  const exportData = {
+    exportDate: new Date().toISOString(),
+    version: '1.0',
+    user: {
+      id: currentUser.id,
+      username: currentUser.username,
+      email: currentUser.email,
+      bio: currentUser.bio,
+      avatar: currentUser.avatar,
+      inviteCode: currentUser.inviteCode,
+      createdAt: currentUser.createdAt
+    },
+    couple: couple ? {
+      id: couple.id,
+      name: couple.name,
+      startDate: couple.startDate,
+      bio: couple.bio,
+      themeConfig: couple.themeConfig,
+      notificationConfig: couple.notificationConfig
+    } : null,
+    data: {
+      diaries,
+      todos,
+      messages,
+      ratings,
+      anniversaries,
+      albumImages: albumImages.map(img => ({
+        id: img.id,
+        src: img.src,
+        caption: img.caption,
+        isFeatured: img.isFeatured,
+        createdAt: img.createdAt
+      })),
+      notifications,
+      mealOrders,
+      kitchenRecipes,
+      periodRecords
+    },
+    stats: {
+      totalDiaries: diaries.length,
+      totalTodos: todos.length,
+      totalMessages: messages.length,
+      totalRatings: ratings.length,
+      totalAnniversaries: anniversaries.length,
+      totalAlbumImages: albumImages.length,
+      totalNotifications: notifications.length,
+      totalMealOrders: mealOrders.length,
+      totalKitchenRecipes: kitchenRecipes.length,
+      totalPeriodRecords: periodRecords.length
+    }
+  }
+
+  // 返回 JSON 文件
+  const fileName = `sweet_love_export_${currentUser.username}_${Date.now()}.json`
+  res.setHeader('Content-Type', 'application/json')
+  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`)
+  res.json(exportData)
+})
+
+// 4. 数据导入
+router.post('/privacy/import-data', authenticate, async (req, res) => {
+  const currentUser = (req as AuthenticatedRequest).user
+  const importData = req.body
+
+  if (!importData || !importData.version || !importData.user || !importData.data) {
+    return res.status(400).json({ message: '导入文件格式错误' })
+  }
+
+  if (importData.version !== '1.0') {
+    return res.status(400).json({ message: '不支持的导入文件版本' })
+  }
+
+  // 验证文件完整性
+  if (!importData.data.diaries || !importData.data.todos || !importData.data.messages) {
+    return res.status(400).json({ message: '导入文件数据不完整' })
+  }
+
+  const couple = await findCurrentCouple(currentUser.id)
+  let imported = {
+    diaries: 0,
+    todos: 0,
+    messages: 0,
+    ratings: 0,
+    anniversaries: 0,
+    albumImages: 0,
+    notifications: 0,
+    mealOrders: 0,
+    kitchenRecipes: 0,
+    periodRecords: 0
+  }
+
+  try {
+    // 导入日记
+    for (const diary of importData.data.diaries || []) {
+      await prisma.diary.create({
+        data: {
+          title: diary.title,
+          content: diary.content,
+          mood: diary.mood,
+          date: diary.date,
+          userId: currentUser.id
+        }
+      })
+      imported.diaries++
+    }
+
+    // 导入待办
+    for (const todo of importData.data.todos || []) {
+      await prisma.todo.create({
+        data: {
+          title: todo.title,
+          description: todo.description,
+          targetDate: todo.targetDate,
+          completed: todo.completed,
+          category: todo.category || 'other',
+          userId: currentUser.id
+        }
+      })
+      imported.todos++
+    }
+
+    // 导入消息
+    for (const msg of importData.data.messages || []) {
+      await prisma.message.create({
+        data: {
+          content: msg.content,
+          timestamp: msg.timestamp,
+          userId: currentUser.id
+        }
+      })
+      imported.messages++
+    }
+
+    // 导入评分
+    for (const rating of importData.data.ratings || []) {
+      try {
+        await prisma.dailyRating.create({
+          data: {
+            score: rating.score,
+            note: rating.note,
+            date: rating.date,
+            userId: currentUser.id
+          }
+        })
+        imported.ratings++
+      } catch {
+        // 可能日期重复，跳过
+      }
+    }
+
+    // 导入纪念日
+    for (const ann of importData.data.anniversaries || []) {
+      await prisma.anniversary.create({
+        data: {
+          title: ann.title,
+          date: ann.date,
+          isImportant: ann.isImportant || false,
+          userId: currentUser.id
+        }
+      })
+      imported.anniversaries++
+    }
+
+    // 导入相册
+    for (const img of importData.data.albumImages || []) {
+      await prisma.albumImage.create({
+        data: {
+          src: img.src,
+          caption: img.caption,
+          isFeatured: img.isFeatured || false,
+          userId: currentUser.id
+        }
+      })
+      imported.albumImages++
+    }
+
+    // 导入通知
+    for (const notif of importData.data.notifications || []) {
+      await prisma.notification.create({
+        data: {
+          type: notif.type,
+          title: notif.title,
+          message: notif.message,
+          read: notif.read || false,
+          userId: currentUser.id,
+          coupleId: couple?.id || ''
+        }
+      })
+      imported.notifications++
+    }
+
+    // 导入点餐（需要情侣关系）
+    if (couple) {
+      for (const order of importData.data.mealOrders || []) {
+        try {
+          await prisma.mealOrderItem.create({
+            data: {
+              date: order.date,
+              dishName: order.dishName,
+              category: order.category,
+              quantity: order.quantity || 1,
+              note: order.note,
+              description: order.description,
+              imageUrl: order.imageUrl,
+              coupleId: couple.id,
+              createdById: currentUser.id
+            }
+          })
+          imported.mealOrders++
+        } catch {
+          // 可能重复，跳过
+        }
+      }
+
+      // 导入厨房菜谱
+      for (const recipe of importData.data.kitchenRecipes || []) {
+        try {
+          await prisma.kitchenRecipe.create({
+            data: {
+              title: recipe.title,
+              category: recipe.category,
+              summary: recipe.summary,
+              imageUrl: recipe.imageUrl,
+              difficulty: recipe.difficulty,
+              cookTime: recipe.cookTime,
+              servings: recipe.servings,
+              ingredients: recipe.ingredients,
+              steps: recipe.steps,
+              coupleId: couple.id,
+              createdById: currentUser.id
+            }
+          })
+          imported.kitchenRecipes++
+        } catch {
+          // 可能重复，跳过
+        }
+      }
+
+      // 导入周期记录
+      for (const record of importData.data.periodRecords || []) {
+        await prisma.periodRecord.create({
+          data: {
+            startDate: record.startDate,
+            endDate: record.endDate,
+            flow: record.flow,
+            painLevel: record.painLevel,
+            symptoms: record.symptoms,
+            note: record.note,
+            coupleId: couple.id,
+            createdById: currentUser.id
+          }
+        })
+        imported.periodRecords++
+      }
+    }
+
+    res.json({
+      message: '数据导入成功',
+      imported
+    })
+  } catch (error) {
+    console.error('Import data error:', error)
+    res.status(500).json({ message: '数据导入失败，请检查文件格式' })
+  }
+})
+
 // AI 配置（单行表）：GET 读当前配置，PUT 写入配置，启用的 provider 配置会覆盖 .env 默认值。
 const AI_CONFIG_SINGLETON_ID = 'singleton'
 

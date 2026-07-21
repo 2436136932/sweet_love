@@ -41,6 +41,7 @@ CREATE TABLE `couples` (
   `coverImage` TEXT NULL,
   `coverCarousel` JSON NULL COMMENT '轮播封面图片数组，存储相册图片的 src 路径',
   `themeConfig` JSON NULL COMMENT '主题配置，存储 JSON {enabled, color}',
+  `notificationConfig` JSON NULL COMMENT '通知提醒配置，存储 JSON {anniversaryReminder, dailyRating, todoReminder}',
   `startDate` DATE NULL,
   `userAId` VARCHAR(191) NOT NULL,
   `userBId` VARCHAR(191) NOT NULL,

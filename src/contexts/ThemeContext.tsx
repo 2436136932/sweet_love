@@ -98,7 +98,7 @@ export function ThemeProvider({
     const vars = activeTheme
     const root = document.documentElement
     Object.entries(vars.palette).forEach(([k, v]) => {
-      root.style.setProperty(`--theme-${k}`, v)
+      root.style.setProperty(`--theme-${k}`, v as string)
     })
     root.style.setProperty('--theme-bg', vars.bg)
     root.style.setProperty('--theme-bg-light', vars.bgLight)

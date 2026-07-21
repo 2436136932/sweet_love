@@ -420,6 +420,133 @@ export const aiModelService = {
   }
 }
 
+export interface NotificationConfig {
+  anniversaryReminder: { enabled: boolean; daysBefore: number }
+  dailyRating: { enabled: boolean; time: string }
+  todoReminder: { enabled: boolean }
+}
+
+export const notificationService = {
+  async get(): Promise<NotificationConfig> {
+    const res = await fetch(`${API_BASE}/couple/notification-config`, {
+      headers: getHeaders()
+    })
+    await ensureOk(res, 'Failed to fetch notification config')
+    return res.json()
+  },
+  async update(config: NotificationConfig): Promise<NotificationConfig> {
+    const res = await fetch(`${API_BASE}/couple/notification-config`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(config)
+    })
+    await ensureOk(res, 'Failed to update notification config')
+    return res.json()
+  }
+}
+
+export interface NotificationItem {
+  id: string
+  type: 'anniversary' | 'daily_rating' | 'todo'
+  title: string
+  message: string
+  read: boolean
+  userId: string
+  coupleId: string
+  createdAt: string
+}
+
+export interface NotificationList {
+  notifications: NotificationItem[]
+  unreadCount: number
+}
+
+export const notificationListService = {
+  async getAll(): Promise<NotificationList> {
+    const res = await fetch(`${API_BASE}/notifications`, {
+      headers: getHeaders()
+    })
+    await ensureOk(res, 'Failed to fetch notifications')
+    return res.json()
+  },
+  async markRead(id: string): Promise<void> {
+    const res = await fetch(`${API_BASE}/notifications/${id}/read`, {
+      method: 'POST',
+      headers: getHeaders()
+    })
+    await ensureOk(res, 'Failed to mark notification as read')
+  },
+  async markAllRead(): Promise<void> {
+    const res = await fetch(`${API_BASE}/notifications/read-all`, {
+      method: 'POST',
+      headers: getHeaders()
+    })
+    await ensureOk(res, 'Failed to mark all notifications as read')
+  },
+  async delete(id: string): Promise<void> {
+    const res = await fetch(`${API_BASE}/notifications/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    })
+    await ensureOk(res, 'Failed to delete notification')
+  },
+  async check(): Promise<{ created: string[] }> {
+    const res = await fetch(`${API_BASE}/notifications/check`, {
+      method: 'POST',
+      headers: getHeaders()
+    })
+    await ensureOk(res, 'Failed to check notifications')
+    return res.json()
+  }
+}
+
+export const privacyService = {
+  async getPersonalInfo(): Promise<any> {
+    const res = await fetch(`${API_BASE}/privacy/personal-info`, {
+      headers: getHeaders()
+    })
+    await ensureOk(res, 'Failed to fetch personal info')
+    return res.json()
+  },
+  async changePassword(
+    oldPassword: string,
+    newPassword: string,
+    confirmPassword: string
+  ): Promise<{ message: string }> {
+    const res = await fetch(`${API_BASE}/privacy/change-password`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ oldPassword, newPassword, confirmPassword })
+    })
+    const body = await res.json()
+    if (!res.ok) {
+      throw new Error(body.message || '密码修改失败')
+    }
+    return body
+  },
+  async exportData(): Promise<Blob> {
+    const res = await fetch(`${API_BASE}/privacy/export-data`, {
+      headers: getHeaders()
+    })
+    await ensureOk(res, 'Failed to export data')
+    return res.blob()
+  },
+  async importData(file: File): Promise<{ message: string; imported: any }> {
+    const text = await file.text()
+    const data = JSON.parse(text)
+    const res = await fetch(`${API_BASE}/privacy/import-data`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    })
+    const body = await res.json()
+    if (!res.ok) {
+      throw new Error(body.message || '数据导入失败')
+    }
+    return body
+  }
+}
+
 export const diaryService = {
   async getAll(startDate?: string, endDate?: string): Promise<DiaryEntry[]> {
     const search = new URLSearchParams()
