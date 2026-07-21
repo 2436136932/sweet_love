@@ -1,0 +1,431 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(cuid())
+  username   String
+  email      String   @unique
+  password   String
+  avatar     String?  @db.Text
+  bio        String?  @db.Text
+  momentStatus String?
+  momentStatusText String?
+  momentStatusUpdatedAt DateTime?
+  inviteCode String   @unique
+  partnerId  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  anniversaries Anniversary[]
+  albumImages   AlbumImage[]
+  albumComments AlbumComment[]
+  albumLikes    AlbumLike[]
+  dailyRatings  DailyRating[]
+  diaries       Diary[]
+  messages      Message[]
+  todos         Todo[]
+  couplesA      Couple[]      @relation("CoupleUserA")
+  couplesB      Couple[]      @relation("CoupleUserB")
+  menuDishes    MenuDish[]
+  mealOrderItems MealOrderItem[]
+  kitchenRecipes KitchenRecipe[]
+  kitchenRecipeFavorites KitchenRecipeFavorite[]
+  kitchenShoppingLists KitchenShoppingList[]
+  kitchenCookCheckins KitchenCookCheckin[]
+  periodRecordsCreated PeriodRecord[]
+  periodDailyLogsCreated PeriodDailyLog[]
+
+  @@map("users")
+}
+
+model Couple {
+  id         String    @id @default(cuid())
+  name       String?
+  bio        String?   @db.Text
+  coverImage String?   @db.Text
+  startDate  DateTime? @db.Date
+  userAId    String
+  userBId    String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  userA          User            @relation("CoupleUserA", fields: [userAId], references: [id], onDelete: Cascade)
+  userB          User            @relation("CoupleUserB", fields: [userBId], references: [id], onDelete: Cascade)
+  menuDishes     MenuDish[]
+  mealOrderItems MealOrderItem[]
+  kitchenRecipes KitchenRecipe[]
+  kitchenShoppingLists KitchenShoppingList[]
+  kitchenCookCheckins KitchenCookCheckin[]
+  periodRecords PeriodRecord[]
+  periodDailyLogs PeriodDailyLog[]
+  periodSettings PeriodSettings?
+
+  @@index([userAId])
+  @@index([userBId])
+  @@map("couples")
+}
+
+model Anniversary {
+  id          String   @id @default(cuid())
+  title       String
+  date        DateTime @db.Date
+  isImportant Boolean  @default(false)
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("anniversaries")
+}
+
+model AlbumImage {
+  id          String   @id @default(cuid())
+  src         String   @db.Text
+  title       String
+  description String?  @db.Text
+  mediaType   String   @default("image")
+  height      String?
+  date        DateTime
+  category    String?
+  locationAddress String? @db.Text
+  lat         Float?
+  lng         Float?
+  locationSource String?
+  locationAccuracyMeters Float?
+  locationPoiId String?
+  locationPoiName String?
+  locationAdcode String?
+  locationCoordinateSystem String? @default("GCJ02")
+  isFeatured  Boolean  @default(false)
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comments AlbumComment[]
+  likes    AlbumLike[]
+
+  @@index([userId])
+  @@map("album_images")
+}
+
+model AlbumComment {
+  id           String   @id @default(cuid())
+  content      String   @db.Text
+  albumImageId String
+  userId       String
+  createdAt    DateTime @default(now())
+
+  albumImage AlbumImage @relation(fields: [albumImageId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([albumImageId])
+  @@index([userId])
+  @@map("album_comments")
+}
+
+model AlbumLike {
+  id           String   @id @default(cuid())
+  albumImageId String
+  userId       String
+  createdAt    DateTime @default(now())
+
+  albumImage AlbumImage @relation(fields: [albumImageId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([albumImageId, userId])
+  @@index([albumImageId])
+  @@index([userId])
+  @@map("album_likes")
+}
+
+model Diary {
+  id        String   @id @default(cuid())
+  date      DateTime
+  mood      String
+  content   String   @db.Text
+  location  String?  @db.Text
+  images    Json?
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("diaries")
+}
+
+model Todo {
+  id            String    @id @default(cuid())
+  title         String
+  description   String?   @db.Text
+  targetDate    DateTime?
+  completed     Boolean   @default(false)
+  completedAt   DateTime?
+  completedById String?
+  memoryNote    String?   @db.Text
+  memoryImages  Json?
+  isFeatured    Boolean   @default(false)
+  sortOrder     Int       @default(0)
+  category      String
+  autoSource    String?
+  autoSourceKey String?
+  autoDate      DateTime? @db.Date
+  userId        String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([completed, isFeatured, sortOrder])
+  @@index([autoSource, autoSourceKey, autoDate])
+  @@map("todos")
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  senderId  String
+  content   String   @db.Text
+  imageUrl  String?  @db.Text
+  timestamp String
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  replyToId String?
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replyTo   Message? @relation("MessageReply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies   Message[] @relation("MessageReply")
+
+  @@index([userId])
+  @@index([replyToId])
+  @@map("messages")
+}
+
+model DailyRating {
+  id        String   @id @default(cuid())
+  score     Int
+  note      String?  @db.Text
+  date      DateTime @db.Date
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@map("daily_ratings")
+}
+
+model MenuDish {
+  id          String   @id @default(cuid())
+  name        String
+  category    String
+  description String?  @db.Text
+  imageUrl    String?  @db.Text
+  coupleId    String
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  couple     Couple          @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  createdBy  User            @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  orderItems MealOrderItem[]
+
+  @@unique([coupleId, name])
+  @@index([coupleId])
+  @@index([createdById])
+  @@map("menu_dishes")
+}
+
+model MealOrderItem {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date
+  dishName    String
+  category    String
+  quantity    Int      @default(1)
+  note        String?  @db.Text
+  description String?  @db.Text
+  imageUrl    String?  @db.Text
+  coupleId    String
+  createdById String
+  dishId      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  couple    Couple    @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  createdBy User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  dish      MenuDish? @relation(fields: [dishId], references: [id], onDelete: SetNull)
+
+  @@unique([coupleId, date, dishName])
+  @@index([coupleId, date])
+  @@index([createdById])
+  @@index([dishId])
+  @@map("meal_order_items")
+}
+
+model KitchenRecipe {
+  id          String   @id @default(cuid())
+  title       String
+  category    String
+  summary     String?  @db.Text
+  imageUrl    String?  @db.Text
+  difficulty  String?
+  cookTime    Int?
+  servings    Int?
+  ingredients Json?
+  steps       Json?
+  coupleId    String
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  couple    Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  createdBy User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@unique([coupleId, title])
+  @@index([coupleId])
+  @@index([createdById])
+  @@map("kitchen_recipes")
+}
+
+model KitchenRecipeFavorite {
+  id        String   @id @default(cuid())
+  recipeId  String
+  userId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([recipeId, userId])
+  @@index([userId])
+  @@map("kitchen_recipe_favorites")
+}
+
+model KitchenShoppingList {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date
+  coupleId    String
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  couple    Couple                    @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  createdBy User                      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  items     KitchenShoppingListItem[]
+
+  @@unique([coupleId, date])
+  @@index([createdById])
+  @@map("kitchen_shopping_lists")
+}
+
+model KitchenShoppingListItem {
+  id        String   @id @default(cuid())
+  name      String
+  quantity  Float?
+  unit      String?
+  note      String?  @db.Text
+  checked   Boolean  @default(false)
+  listId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  list KitchenShoppingList @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  @@index([listId])
+  @@map("kitchen_shopping_list_items")
+}
+
+model KitchenCookCheckin {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date
+  recipeId    String?
+  title       String
+  imageUrl    String?  @db.Text
+  note        String?  @db.Text
+  rating      Int?
+  coupleId    String
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  couple    Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  createdBy User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([coupleId, date])
+  @@index([createdById])
+  @@map("kitchen_cook_checkins")
+}
+
+model PeriodRecord {
+  id          String    @id @default(cuid())
+  startDate   DateTime  @db.Date
+  endDate     DateTime? @db.Date
+  flow        String?
+  painLevel   Int?
+  symptoms    Json?
+  note        String?   @db.Text
+  coupleId    String
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  couple    Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  createdBy User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([coupleId, startDate])
+  @@index([createdById])
+  @@map("period_records")
+}
+
+model PeriodDailyLog {
+  id                 String   @id @default(cuid())
+  date               DateTime @db.Date
+  flow               String?
+  painLevel          Int?
+  symptoms           Json?
+  moods              Json?
+  energyLevel        Int?
+  temperatureCelsius Decimal? @db.Decimal(4, 2)
+  lhTestResult       String?
+  intercourse        Boolean  @default(false)
+  note               String?  @db.Text
+  coupleId           String
+  createdById        String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  couple    Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  createdBy User   @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@unique([coupleId, date])
+  @@index([createdById])
+  @@map("period_daily_logs")
+}
+
+model PeriodSettings {
+  id                    String   @id @default(cuid())
+  mode                  String   @default("cycle")
+  defaultCycleDays      Int      @default(28)
+  defaultPeriodDays     Int      @default(5)
+  reminderLeadDays      Int      @default(3)
+  autoSyncCareTodos     Boolean  @default(true)
+  coupleId              String   @unique
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  couple Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+
+  @@map("period_settings")
+}
