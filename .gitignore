@@ -1,6 +1,14 @@
 node_modules/
+build/
 dist/
 dist-server/
+coverage/
+.dev-logs/
+output/
 uploads/
+db.backup-*.json
+.DS_Store
 *.log
+.env*
+!.env.example
 .git/
