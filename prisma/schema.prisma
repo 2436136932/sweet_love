@@ -429,3 +429,36 @@ model PeriodSettings {
 
   @@map("period_settings")
 }
+
+model AiConfig {
+  id String @id @default(cuid())
+
+  enabled Boolean @default(false)
+  provider String @default("openai-compatible")
+
+  // OpenAI-compatible
+  openaiApiKey      String? @db.Text
+  openaiBaseUrl     String? @db.Text
+  openaiModel       String?
+  openaiTemperature Float?
+  openaiMaxTokens   Int?
+  openaiTimeoutMs   Int?
+
+  // Gemini
+  geminiApiKey      String? @db.Text
+  geminiModel       String?
+  geminiTemperature Float?
+  geminiMaxTokens   Int?
+  geminiTimeoutMs   Int?
+
+  // Claude
+  claudeApiKey    String? @db.Text
+  claudeModel     String?
+  claudeMaxTokens Int?
+  claudeTimeoutMs Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("ai_config")
+}
