@@ -1,0 +1,199 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-24T00:00:00.000+08:00",
+  "title": "Design System: Sweet Love",
+  "extensions": {
+    "colorMeta": {
+      "rose-accent": {
+        "role": "primary",
+        "displayName": "Keepsake Rose",
+        "canonical": "#ec4899",
+        "tonalRamp": ["#500724", "#831843", "#be185d", "#db2777", "#ec4899", "#f9a8d4", "#fce7f3", "#fdf2f8"]
+      },
+      "rose-strong": {
+        "role": "primary",
+        "displayName": "Care Signal Rose",
+        "canonical": "#f43f5e",
+        "tonalRamp": ["#4c0519", "#881337", "#be123c", "#e11d48", "#f43f5e", "#fda4af", "#ffe4e6", "#fff1f2"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#111827",
+        "tonalRamp": ["#020617", "#0f172a", "#111827", "#1f2937", "#374151", "#6b7280", "#d1d5db", "#f9fafb"]
+      },
+      "warm-surface": {
+        "role": "neutral",
+        "displayName": "Warm Surface",
+        "canonical": "#fef9f3",
+        "tonalRamp": ["#431407", "#7c2d12", "#c2410c", "#fb923c", "#fed7aa", "#ffedd5", "#fff7ed", "#fef9f3"]
+      },
+      "blue-accent": {
+        "role": "secondary",
+        "displayName": "Clear Sky Blue",
+        "canonical": "#3b82f6",
+        "tonalRamp": ["#172554", "#1e3a8a", "#1d4ed8", "#2563eb", "#3b82f6", "#93c5fd", "#dbeafe", "#eff6ff"]
+      },
+      "amber-accent": {
+        "role": "secondary",
+        "displayName": "Kitchen Amber",
+        "canonical": "#f59e0b",
+        "tonalRamp": ["#451a03", "#78350f", "#b45309", "#d97706", "#f59e0b", "#fcd34d", "#fef3c7", "#fffbeb"]
+      },
+      "emerald-accent": {
+        "role": "secondary",
+        "displayName": "Done Emerald",
+        "canonical": "#10b981",
+        "tonalRamp": ["#022c22", "#064e3b", "#047857", "#059669", "#10b981", "#6ee7b7", "#d1fae5", "#ecfdf5"]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page titles and major status summaries."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Cards, panels, and section headers."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Notes, previews, AI results, and descriptive copy."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Metadata, chips, badges, and compact control labels."
+      }
+    },
+    "shadows": [
+      {
+        "name": "soft-card-lift",
+        "value": "0 10px 30px rgba(236, 72, 153, 0.10)",
+        "purpose": "Repeated cards and status panels."
+      },
+      {
+        "name": "action-glow",
+        "value": "0 12px 24px rgba(236, 72, 153, 0.18)",
+        "purpose": "Primary buttons that need a confident tap target."
+      },
+      {
+        "name": "phone-shell-lift",
+        "value": "0 25px 60px rgba(15, 23, 42, 0.18)",
+        "purpose": "The outer desktop phone-shell container."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-standard",
+        "value": "150ms-250ms ease-out",
+        "purpose": "Feedback for taps, panel reveals, selected states, and loading transitions."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Rose action button for save, create, adopt, and submit actions.",
+      "html": "<button class=\"ds-btn-primary\">Save record</button>",
+      "css": ".ds-btn-primary{display:inline-flex;min-height:44px;align-items:center;justify-content:center;gap:8px;border:0;border-radius:16px;background:#ec4899;color:#fff;padding:12px 16px;font:900 13px/1 Inter,system-ui,sans-serif;box-shadow:0 12px 24px rgba(236,72,153,.18);transition:transform .18s ease,background .18s ease,box-shadow .18s ease}.ds-btn-primary:hover{background:#db2777}.ds-btn-primary:active{transform:scale(.98)}.ds-btn-primary:focus-visible{outline:3px solid rgba(236,72,153,.28);outline-offset:2px}.ds-btn-primary:disabled{opacity:.5;box-shadow:none}"
+    },
+    {
+      "name": "Dark AI Button",
+      "kind": "button",
+      "refersTo": "button-dark",
+      "description": "Neutral strong button used for AI generation and decisive utility actions.",
+      "html": "<button class=\"ds-btn-dark\">Ask AI</button>",
+      "css": ".ds-btn-dark{display:inline-flex;min-height:44px;align-items:center;justify-content:center;gap:8px;border:0;border-radius:16px;background:#111827;color:#fff;padding:12px 16px;font:900 13px/1 Inter,system-ui,sans-serif;box-shadow:0 12px 24px rgba(17,24,39,.16);transition:transform .18s ease,background .18s ease}.ds-btn-dark:hover{background:#1f2937}.ds-btn-dark:active{transform:scale(.98)}.ds-btn-dark:focus-visible{outline:3px solid rgba(17,24,39,.22);outline-offset:2px}"
+    },
+    {
+      "name": "Soft Card",
+      "kind": "card",
+      "refersTo": "card-soft",
+      "description": "Default white rounded surface for homepage modules, status panels, and forms.",
+      "html": "<section class=\"ds-card\"><h3>Today together</h3><p>Small shared notes and actions live here.</p></section>",
+      "css": ".ds-card{border:1px solid rgba(255,255,255,.8);border-radius:28px;background:rgba(255,255,255,.86);color:#374151;padding:16px;box-shadow:0 10px 30px rgba(236,72,153,.10);backdrop-filter:blur(12px)}.ds-card h3{margin:0;color:#111827;font:900 16px/1.25 Inter,system-ui,sans-serif}.ds-card p{margin:6px 0 0;color:#6b7280;font:700 13px/1.55 Inter,system-ui,sans-serif}"
+    },
+    {
+      "name": "Soft Input",
+      "kind": "input",
+      "refersTo": "input-soft",
+      "description": "Rounded field for short notes, prompts, names, dates, and form rows.",
+      "html": "<input class=\"ds-input\" placeholder=\"Write a small note\" />",
+      "css": ".ds-input{width:100%;min-height:44px;border:1px solid #fce7f3;border-radius:16px;background:#fff;color:#374151;padding:12px 14px;font:700 13px/1.4 Inter,system-ui,sans-serif}.ds-input::placeholder{color:#9ca3af}.ds-input:focus{outline:0;border-color:#f9a8d4;box-shadow:0 0 0 3px rgba(236,72,153,.12)}.ds-input:disabled{opacity:.55;background:#f9fafb}"
+    },
+    {
+      "name": "Selected Chip",
+      "kind": "chip",
+      "refersTo": "chip-selected",
+      "description": "Compact selected state for filters, symptoms, categories, and tags.",
+      "html": "<button class=\"ds-chip-selected\">Selected</button>",
+      "css": ".ds-chip-selected{display:inline-flex;min-height:32px;align-items:center;justify-content:center;border:0;border-radius:999px;background:#ec4899;color:#fff;padding:8px 14px;font:900 11px/1 Inter,system-ui,sans-serif;transition:transform .16s ease,background .16s ease}.ds-chip-selected:hover{background:#db2777}.ds-chip-selected:active{transform:scale(.97)}.ds-chip-selected:focus-visible{outline:3px solid rgba(236,72,153,.24);outline-offset:2px}"
+    },
+    {
+      "name": "Phone Bottom Nav",
+      "kind": "nav",
+      "refersTo": "bottom-nav",
+      "description": "Floating five-entry navigation for the core product routes.",
+      "html": "<nav class=\"ds-bottom-nav\"><button class=\"is-active\">Home</button><button>Diary</button><button>Album</button></nav>",
+      "css": ".ds-bottom-nav{display:flex;align-items:center;justify-content:space-around;gap:4px;height:64px;border:1px solid rgba(255,255,255,.5);border-radius:32px;background:rgba(255,255,255,.62);padding:8px;box-shadow:0 18px 36px rgba(15,23,42,.14);backdrop-filter:blur(24px)}.ds-bottom-nav button{min-height:44px;flex:1;border:0;border-radius:18px;background:transparent;color:#9ca3af;font:900 10px/1 Inter,system-ui,sans-serif}.ds-bottom-nav button.is-active{color:#ec4899;transform:scale(1.06)}.ds-bottom-nav button:focus-visible{outline:3px solid rgba(236,72,153,.22);outline-offset:2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Pocket Keepsake Room",
+    "overview": "Sweet Love should feel like a small private room carried in a phone: warm, personal, and useful in short visits. The existing visual language uses a mobile app shell, soft rose accents, white translucent surfaces, rounded controls, photo-led memory cards, and compact task panels. Keep that intimacy, but discipline the density.",
+    "keyCharacteristics": [
+      "Mobile-first phone-shell layout with a maximum-width app surface.",
+      "Soft layered surfaces over rose, warm-white, and lavender backgrounds.",
+      "One primary romantic accent, supported by semantic blue, amber, and emerald states.",
+      "Dense enough for repeated use, but never cramped.",
+      "AI and generated content appear as draft panels, not permanent actions."
+    ],
+    "rules": [
+      {
+        "name": "The One Rose Rule",
+        "body": "Rose is the product's romantic signal. It must guide the eye to primary actions and selected states, not decorate every surface.",
+        "section": "colors"
+      },
+      {
+        "name": "The No Wrong Picture Rule",
+        "body": "If a recipe or memory image is not accurate, show a neutral placeholder rather than a misleading generic image.",
+        "section": "colors"
+      },
+      {
+        "name": "The No Vertical Text Rule",
+        "body": "Names, statuses, and buttons must truncate or reflow before they ever collapse into one-character vertical stacks.",
+        "section": "typography"
+      },
+      {
+        "name": "The Quiet Lift Rule",
+        "body": "Shadows should separate surfaces, not become the design. If a shadow is visible before the content, it is too strong.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do design every surface inside the narrow phone shell first.",
+      "Do use photos and real user content as the emotional anchor.",
+      "Do keep rose for primary actions and meaningful states.",
+      "Do show AI output as a draft with a manual confirmation action.",
+      "Do use single-line truncation for compact names, status text, and chip labels.",
+      "Do provide empty states that teach the next action."
+    ],
+    "donts": [
+      "Don't create full-screen pink capsule overload.",
+      "Don't let action buttons squeeze names or statuses into vertical text.",
+      "Don't put nested cards inside decorative cards.",
+      "Don't add bottom-nav entries for every new feature.",
+      "Don't use medical, pregnancy-probability, safety-period, diagnosis, or treatment language in period features.",
+      "Don't let AI save, send, or overwrite content without explicit user adoption.",
+      "Don't use generic recipe photos when the match is uncertain."
+    ]
+  }
+}

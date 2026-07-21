@@ -1,0 +1,30 @@
+import tailwindcss from '@tailwindcss/vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+import {defineConfig, loadEnv} from 'vite';
+
+export default defineConfig(({mode}) => {
+  const env = loadEnv(mode, '.', '');
+  return {
+    plugins: [react(), tailwindcss()],
+    define: {
+      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+      'process.env.VITE_AMAP_KEY': JSON.stringify(env.VITE_AMAP_KEY || ''),
+      'process.env.VITE_AMAP_SECURITY_CODE': JSON.stringify(env.VITE_AMAP_SECURITY_CODE || ''),
+      'import.meta.env.VITE_IMAGE_CDN_BASE_URL': JSON.stringify(env.VITE_IMAGE_CDN_BASE_URL || env.S3_PUBLIC_URL || ''),
+      'import.meta.env.VITE_IMAGE_CDN_PROVIDER': JSON.stringify(env.VITE_IMAGE_CDN_PROVIDER || 'upyun'),
+      'import.meta.env.VITE_IMAGE_CDN_QUALITY': JSON.stringify(env.VITE_IMAGE_CDN_QUALITY || '75'),
+      'import.meta.env.VITE_IMAGE_CDN_WIDTHS': JSON.stringify(env.VITE_IMAGE_CDN_WIDTHS || '120,240,360,480,720,1080'),
+    },
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, '.'),
+      },
+    },
+    server: {
+      // HMR is disabled in AI Studio via DISABLE_HMR env var.
+      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
+      hmr: process.env.DISABLE_HMR !== 'true',
+    },
+  };
+});

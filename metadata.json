@@ -1,0 +1,6 @@
+{
+  "name": "SweetLover",
+  "description": "温柔、治愈的情侣恋爱记录空间，支持日记、相册、纪念日等功能。",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": []
+}
