@@ -2469,6 +2469,51 @@ router.get('/couple/cover-candidates', authenticate, async (req, res) => {
   })
 })
 
+// 主题配置：GET 读当前主题色，PUT 更新（存储为 JSON { enabled, color }）。
+router.get('/couple/theme', authenticate, async (req, res) => {
+  const currentUser = (req as AuthenticatedRequest).user
+  if (!currentUser.partnerId)
+    return res.status(404).json({ message: 'No relationship found' })
+  const couple = await findCurrentCouple(currentUser.id)
+  if (!couple)
+    return res.status(404).json({ message: 'Relationship not found' })
+
+  let theme: { enabled: boolean; color: string } | undefined = undefined
+  const raw = couple.themeConfig
+  if (raw && typeof raw === 'object' && 'enabled' in raw && 'color' in raw) {
+    const c = String(raw.color || '')
+    const e = Boolean(raw.enabled)
+    if (c.startsWith('#') || /^#[0-9a-fA-F]{6}$/.test(c)) {
+      theme = { enabled: e, color: c }
+    }
+  }
+  res.json({ themeConfig: theme })
+})
+
+router.put('/couple/theme', authenticate, async (req, res) => {
+  const currentUser = (req as AuthenticatedRequest).user
+  if (!currentUser.partnerId)
+    return res.status(400).json({ message: 'No relationship found' })
+
+  const couple = await findCurrentCouple(currentUser.id)
+  if (!couple)
+    return res.status(404).json({ message: 'Relationship not found' })
+
+  const { enabled, color } = req.body
+  const hex = typeof color === 'string' ? color.trim() : ''
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex))
+    return res
+      .status(400)
+      .json({ message: '颜色格式错误，请使用 #RRGGBB 格式' })
+
+  const data: any = { themeConfig: { enabled: Boolean(enabled), color: hex } }
+  const updated = await prisma.couple.update({
+    where: { id: couple.id },
+    data
+  })
+  res.json({ themeConfig: { enabled: true, color: hex } })
+})
+
 // AI 配置（单行表）：GET 读当前配置，PUT 写入配置，启用的 provider 配置会覆盖 .env 默认值。
 const AI_CONFIG_SINGLETON_ID = 'singleton'
 

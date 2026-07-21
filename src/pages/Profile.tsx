@@ -7,7 +7,6 @@ import {
   ChevronRight,
   Heart,
   HeartOff,
-  Moon,
   Bell,
   LogOut,
   Edit2,
@@ -19,7 +18,10 @@ import {
   Eye,
   EyeOff,
   RefreshCw,
-  ChevronDown
+  ChevronDown,
+  Check,
+  Plus,
+  Trash2
 } from 'lucide-react'
 import React, { useEffect, useState } from 'react'
 import { User, Couple } from '../types'
@@ -36,6 +38,8 @@ import {
 import { useToast } from '../components/Toast'
 import { useModalHistory } from '../hooks/useModalHistory'
 import { AppImage } from '../components/AppImage'
+import { useTheme } from '../contexts/ThemeContext'
+import { deriveTheme } from '../lib/theme'
 
 export default function Profile({
   user,
@@ -56,6 +60,7 @@ export default function Profile({
   const [isEditing, setIsEditing] = useState(false)
   const [isEditingCouple, setIsEditingCouple] = useState(false)
   const [isEditingAi, setIsEditingAi] = useState(false)
+  const [isEditingTheme, setIsEditingTheme] = useState(false)
   const [aiConfig, setAiConfig] = useState<AiConfigData | null>(null)
   const [aiSaving, setAiSaving] = useState(false)
   const [showOpenaiKey, setShowOpenaiKey] = useState(false)
@@ -290,9 +295,13 @@ export default function Profile({
       color: 'bg-indigo-100 text-indigo-500',
       action: () => setIsEditingAi(true)
     },
-    { icon: Palette, label: '主题装扮', color: 'bg-pink-100 text-pink-500' },
+    {
+      icon: Palette,
+      label: '主题装扮',
+      color: 'bg-pink-100 text-pink-500',
+      action: () => setIsEditingTheme(true)
+    },
     { icon: Bell, label: '通知提醒', color: 'bg-blue-100 text-blue-500' },
-    { icon: Moon, label: '沉浸模式', color: 'bg-purple-100 text-purple-500' },
     { icon: Shield, label: '隐私安全', color: 'bg-green-100 text-green-500' },
     {
       icon: HelpCircle,
@@ -376,15 +385,15 @@ export default function Profile({
               </div>
             </div>
             <div>
-              <p className="text-xs font-black text-white">
+              <p className="text-xs font-black text-on-accent">
                 已锁定：{partner?.username || '另一半'}
               </p>
-              <p className="text-[9px] font-bold text-white/70 uppercase tracking-widest mt-0.5">
+              <p className="text-[9px] font-bold text-on-accent/70 uppercase tracking-widest mt-0.5">
                 Lover Joined Forever
               </p>
             </div>
           </div>
-          <button className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/30 bg-white/20 text-white backdrop-blur-md">
+          <button className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/30 bg-white/20 text-on-accent backdrop-blur-md">
             <Settings size={18} />
           </button>
         </div>
@@ -628,7 +637,7 @@ export default function Profile({
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-gradient-to-r from-pink-400 to-purple-400 text-white p-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-pink-100 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
+                  className="w-full bg-gradient-to-r from-pink-400 to-purple-400 text-on-accent p-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-accent disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
                 >
                   {loading ? '正在保存...' : '确认更改'}
                 </button>
@@ -681,7 +690,7 @@ export default function Profile({
                         />
                       )}
                     </div>
-                    <label className="absolute -bottom-2 -right-2 w-10 h-10 bg-pink-500 rounded-full border-2 border-white flex items-center justify-center text-white cursor-pointer shadow-lg hover:bg-pink-600 transition-colors">
+                    <label className="absolute -bottom-2 -right-2 w-10 h-10 bg-accent rounded-full border-2 border-white flex items-center justify-center text-on-accent cursor-pointer shadow-lg hover:bg-pink-600 transition-colors">
                       {imageUploading ? (
                         <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white" />
                       ) : (
@@ -761,7 +770,7 @@ export default function Profile({
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-gradient-to-r from-pink-400 to-purple-400 text-white p-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-pink-100 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
+                  className="w-full bg-gradient-to-r from-pink-400 to-purple-400 text-on-accent p-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-accent disabled:opacity-50 disabled:shadow-none transition-all active:scale-95"
                 >
                   {loading ? '正在保存...' : '确认更改'}
                 </button>
@@ -1203,7 +1212,7 @@ export default function Profile({
                     type="button"
                     onClick={handleSaveAiConfig}
                     disabled={aiSaving}
-                    className="w-full bg-gradient-to-r from-indigo-400 to-purple-400 text-white p-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-indigo-100 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 flex items-center justify-center gap-2"
+                    className="w-full bg-gradient-to-r from-indigo-400 to-purple-400 text-on-accent p-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-accent disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 flex items-center justify-center gap-2"
                   >
                     <Save size={16} />
                     {aiSaving ? '保存中...' : '保存 AI 配置'}
@@ -1214,6 +1223,206 @@ export default function Profile({
           </div>
         )}
       </AnimatePresence>
+
+      {/* Theme Config Modal */}
+      <ThemeConfigModal
+        open={isEditingTheme}
+        onClose={() => setIsEditingTheme(false)}
+      />
     </div>
+  )
+}
+
+/** 主题装扮弹窗 */
+function ThemeConfigModal({
+  open,
+  onClose
+}: {
+  open: boolean
+  onClose: () => void
+}) {
+  const { selectedColor, setSelectedColor, saveTheme, presets, activeTheme } =
+    useTheme()
+  const { showToast } = useToast()
+  const closeThemeModal = useModalHistory('theme-config', open, onClose)
+  const [customHex, setCustomHex] = useState(selectedColor)
+  const [customMode, setCustomMode] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    setCustomHex(selectedColor)
+  }, [selectedColor])
+
+  const handleApplyPreset = async (hex: string) => {
+    setSelectedColor(hex)
+    setCustomMode(false)
+    try {
+      await saveTheme()
+      showToast('主题已更新', 'success')
+    } catch {
+      showToast('保存失败', 'error')
+    }
+  }
+
+  const handleSaveCustom = async () => {
+    let hex = customHex.trim().toUpperCase()
+    if (!hex.startsWith('#')) hex = '#' + hex
+    if (!/^#[0-9A-F]{6}$/.test(hex)) {
+      showToast('请输入有效的 HEX 颜色（如 #FF6B9D）', 'error')
+      return
+    }
+    setSaving(true)
+    try {
+      setSelectedColor(hex)
+      setCustomMode(true)
+      await saveTheme()
+      showToast('主题已更新', 'success')
+    } catch {
+      showToast('保存失败', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const palette = activeTheme.palette
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            className="bg-white w-full max-w-sm rounded-[40px] p-6 shadow-2xl max-h-[85vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-xl font-black text-gray-800 flex items-center gap-2">
+                <Palette
+                  size={18}
+                  className="text-pink-500"
+                />
+                主题装扮
+              </h3>
+              <button
+                onClick={closeThemeModal}
+                className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 hover:bg-gray-100 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* 预览色板 */}
+            <div className="rounded-2xl overflow-hidden border border-gray-100 mb-5">
+              <div
+                className="h-20 flex items-center justify-center text-on-accent font-black text-lg"
+                style={{
+                  background: `linear-gradient(135deg, ${palette['200']}, ${palette['500']})`
+                }}
+              >
+                主题预览 · {selectedColor}
+              </div>
+            </div>
+
+            {/* 预设色板 */}
+            <div className="mb-5">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 mb-3">
+                预设色板
+              </p>
+              <div className="grid grid-cols-4 gap-2">
+                {presets.map((p) => {
+                  const isSelected = selectedColor === p.hex
+                  const derived = deriveTheme(p.hex)
+                  return (
+                    <button
+                      key={p.key}
+                      onClick={() => handleApplyPreset(p.hex)}
+                      className={`relative flex flex-col items-center gap-1 p-1 rounded-2xl transition-all ${
+                        isSelected
+                          ? 'ring-2 ring-pink-400 bg-pink-50'
+                          : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      <div
+                        className="w-full h-10 rounded-xl shadow-sm"
+                        style={{
+                          background: `linear-gradient(135deg, ${derived.palette['200']}, ${derived.palette['500']})`
+                        }}
+                      />
+                      <span className="text-[9px] font-black text-gray-500">
+                        {p.name}
+                      </span>
+                      {isSelected && (
+                        <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-pink-500 flex items-center justify-center text-white">
+                          <Check size={10} />
+                        </div>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* 自定义颜色 */}
+            <div className="rounded-2xl border border-gray-100 p-4">
+              <button
+                type="button"
+                onClick={() => setCustomMode(!customMode)}
+                className="flex items-center justify-between w-full text-left mb-3"
+              >
+                <span className="text-xs font-black text-gray-700">
+                  {customMode ? '编辑自定义颜色' : '自定义颜色'}
+                </span>
+                <ChevronRight
+                  size={16}
+                  className={`text-gray-300 transition-transform ${customMode ? 'rotate-90' : ''}`}
+                />
+              </button>
+              {customMode && (
+                <div className="space-y-3">
+                  <div className="flex gap-2 items-center">
+                    <div
+                      className="w-12 h-12 rounded-xl shadow-inner border border-gray-100 flex-shrink-0"
+                      style={{ backgroundColor: customHex }}
+                    />
+                    <input
+                      type="text"
+                      value={customHex}
+                      onChange={(e) => setCustomHex(e.target.value)}
+                      placeholder="#FF6B9D"
+                      className="flex-1 bg-gray-50 border-none rounded-xl p-3 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-pink-100"
+                      maxLength={7}
+                    />
+                  </div>
+                  <input
+                    type="color"
+                    value={customHex}
+                    onChange={(e) => setCustomHex(e.target.value.toUpperCase())}
+                    className="w-full h-10 rounded-xl cursor-pointer border-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSaveCustom}
+                    disabled={saving}
+                    className="w-full bg-gradient-to-r from-pink-400 to-purple-400 text-on-accent p-3 rounded-2xl font-black text-sm uppercase tracking-widest shadow-lg shadow-accent disabled:opacity-50 transition-all active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    {saving ? (
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                    ) : (
+                      <Save size={14} />
+                    )}
+                    应用自定义主题
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <p className="mt-4 text-[10px] font-bold text-gray-400 text-center">
+              主题颜色将应用到整个应用界面，双方同步可见
+            </p>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   )
 }

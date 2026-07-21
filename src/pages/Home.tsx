@@ -529,7 +529,7 @@ export default function Home({
             size={20}
             className="text-gray-600"
           />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-pink-500 rounded-full border border-white" />
+          <span className="absolute top-1 right-1 w-2 h-2 bg-accent rounded-full border border-white" />
         </button>
       </header>
 
@@ -573,18 +573,18 @@ export default function Home({
                   </span>
                 )}
               </button>
-              <div className="absolute bottom-5 left-5 right-5 z-10 text-white">
-                <div className="mb-2 flex items-center gap-2 text-pink-200">
+              <div className="absolute bottom-5 left-5 right-5 z-10 text-on-accent">
+                <div className="mb-2 flex items-center gap-2 opacity-70">
                   <Heart
                     size={16}
-                    className="fill-pink-300"
+                    className="fill-current"
                   />
                   <Sparkles size={11} />
                 </div>
                 <p className="truncate text-3xl font-black leading-tight drop-shadow-sm lg:text-4xl">
                   {couple?.name || 'SweetLover'}
                 </p>
-                <p className="mt-1.5 text-sm font-bold text-white/90">
+                <p className="mt-1.5 text-sm font-bold opacity-90">
                   第{stats.days}天 · 一直甜甜的
                 </p>
               </div>
@@ -593,7 +593,7 @@ export default function Home({
             <div className="mt-3 rounded-[28px] border border-white/80 bg-white/80 p-3 shadow-sm backdrop-blur-md">
               <div className="mb-1.5 flex items-center justify-between gap-3 px-1">
                 <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-pink-500" />
+                  <span className="h-2 w-2 rounded-full bg-accent" />
                   <span className="text-xs font-black text-gray-800">
                     此刻状态
                   </span>
@@ -714,7 +714,7 @@ export default function Home({
                     type="button"
                     onClick={handleMomentSave}
                     disabled={momentSaving}
-                    className="flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-pink-500 text-xs font-black text-white shadow-lg shadow-pink-100 disabled:opacity-60"
+                    className="flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-accent text-on-accent text-xs font-black shadow-lg shadow-accent disabled:opacity-60"
                   >
                     {momentSaving ? (
                       <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
@@ -733,25 +733,25 @@ export default function Home({
               type="button"
               whileTap={{ scale: 0.98 }}
               onClick={primaryFocus.onClick}
-              className="flex w-full items-center gap-3 rounded-[26px] bg-gray-900 p-4 text-left text-white shadow-lg shadow-gray-200/70"
+              className="flex w-full items-center gap-3 rounded-[26px] bg-accent p-4 text-left text-on-accent shadow-lg shadow-accent/20"
             >
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-pink-200">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-on-accent">
                 <PrimaryFocusIcon size={20} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[10px] font-black text-white/50">
+                <span className="block text-[10px] font-black text-on-accent/60">
                   {primaryFocus.label}
                 </span>
                 <span className="mt-0.5 block truncate text-base font-black">
                   {primaryFocus.title}
                 </span>
-                <span className="mt-1 block truncate text-xs font-bold text-white/60">
+                <span className="mt-1 block truncate text-xs font-bold text-on-accent/70">
                   {primaryFocus.detail}
                 </span>
               </span>
               <ChevronRight
                 size={18}
-                className="shrink-0 text-white/50"
+                className="shrink-0 text-on-accent/50"
               />
             </motion.button>
 
@@ -821,7 +821,7 @@ export default function Home({
                     type="button"
                     onClick={handleLoveAiGenerate}
                     disabled={loveAiLoading}
-                    className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-gray-900 text-xs font-black text-white shadow-lg shadow-gray-200 disabled:opacity-60"
+                    className="flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-accent text-xs font-black text-on-accent shadow-lg shadow-accent/20 disabled:opacity-60"
                   >
                     {loveAiLoading ? (
                       <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
@@ -932,7 +932,7 @@ export default function Home({
                   <button
                     type="button"
                     onClick={() => onNavigate('album')}
-                    className="mt-4 inline-flex min-h-10 items-center justify-center rounded-full bg-gray-900 px-4 text-xs font-black text-white shadow-lg shadow-gray-200"
+                    className="mt-4 inline-flex min-h-10 items-center justify-center rounded-full bg-accent px-4 text-xs font-black text-on-accent shadow-lg shadow-accent/20"
                   >
                     打开相册
                   </button>
@@ -1100,7 +1100,7 @@ export default function Home({
                       {task.description}
                     </p>
                     <span
-                      className={`mt-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black ${task.done ? 'bg-gray-100 text-gray-500' : 'bg-pink-500 text-white'}`}
+                      className={`mt-3 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black ${task.done ? 'bg-gray-100 text-gray-500' : 'bg-accent text-on-accent'}`}
                     >
                       {task.actionLabel}
                       <ChevronRight size={12} />
@@ -1180,7 +1180,7 @@ export default function Home({
                     whileTap={{ scale: 0.95 }}
                     onClick={handleRatingSubmit}
                     disabled={ratingScore === 0 || submitting}
-                    className="min-w-12 p-3 bg-pink-500 text-white rounded-xl shadow-lg shadow-pink-200 disabled:opacity-50 flex items-center justify-center"
+                    className="min-w-12 p-3 bg-accent text-on-accent rounded-xl shadow-lg shadow-accent disabled:opacity-50 flex items-center justify-center"
                     title={myRating ? '更新今日评分' : '提交今日评分'}
                   >
                     {submitting ? (
@@ -1300,8 +1300,8 @@ function MomentStatusRow({
           text: 'text-blue-500'
         }
       : {
-          icon: 'bg-pink-500',
-          button: 'bg-pink-500 text-white shadow-pink-200',
+          icon: 'bg-accent',
+          button: 'bg-accent text-on-accent shadow-accent',
           text: 'text-pink-500'
         }
   const Wrapper = editable ? 'button' : 'div'

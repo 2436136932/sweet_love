@@ -50,6 +50,7 @@ model Couple {
   bio        String?   @db.Text
   coverImage     String?   @db.Text
   coverCarousel  Json?
+  themeConfig    Json?
   startDate      DateTime? @db.Date
   userAId    String
   userBId    String

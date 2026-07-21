@@ -244,9 +244,7 @@ export const periodService = {
     await ensureOk(res, 'Failed to update period settings')
     return res.json()
   },
-  async syncCareTodos(
-    clientToday?: string
-  ): Promise<{
+  async syncCareTodos(clientToday?: string): Promise<{
     skipped: boolean
     created: number
     updated: number
@@ -331,6 +329,27 @@ export const coupleService = {
     await ensureOk(res, 'Failed to fetch cover candidates')
     const data = await res.json()
     return data.images || []
+  },
+  async getThemeConfig(): Promise<{ enabled: boolean; color: string } | null> {
+    const res = await fetch(`${API_BASE}/couple/theme`, {
+      headers: getHeaders()
+    })
+    if (res.status === 404) return null
+    await ensureOk(res, 'Failed to fetch theme config')
+    const data = await res.json()
+    return data.themeConfig || null
+  },
+  async updateThemeConfig(config: {
+    enabled: boolean
+    color: string
+  }): Promise<{ themeConfig: { enabled: boolean; color: string } }> {
+    const res = await fetch(`${API_BASE}/couple/theme`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(config)
+    })
+    await ensureOk(res, 'Failed to update theme config')
+    return res.json()
   }
 }
 

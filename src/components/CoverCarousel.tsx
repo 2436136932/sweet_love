@@ -342,7 +342,7 @@ function PickerContent({
                       loading="lazy"
                     />
                     {checked && (
-                      <div className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-pink-500 text-white shadow-md">
+                      <div className="absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-full bg-accent text-on-accent shadow-md">
                         <Check size={12} />
                       </div>
                     )}
@@ -357,7 +357,7 @@ function PickerContent({
           type="button"
           onClick={handleSave}
           disabled={saving || selectedCount === 0}
-          className="mt-4 min-h-11 rounded-2xl bg-gradient-to-r from-pink-400 to-purple-400 text-sm font-black uppercase tracking-widest text-white shadow-lg shadow-pink-100 disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 flex items-center justify-center gap-2"
+          className="mt-4 min-h-11 rounded-2xl bg-gradient-to-r from-pink-400 to-purple-400 text-sm font-black uppercase tracking-widest text-on-accent shadow-lg shadow-accent disabled:opacity-50 disabled:shadow-none transition-all active:scale-95 flex items-center justify-center gap-2"
         >
           {saving ? (
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
