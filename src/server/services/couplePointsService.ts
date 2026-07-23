@@ -380,10 +380,7 @@ export async function ensurePresetCoupons(
   })
 }
 
-export async function getStoreTemplates(
-  coupleId: string,
-  createdById: string
-) {
+export async function getStoreTemplates(coupleId: string, createdById: string) {
   await ensurePresetCoupons(coupleId, createdById)
   return prisma.couponTemplate.findMany({
     where: { coupleId, isDeleted: false },
@@ -428,7 +425,7 @@ export async function updateCouponTemplate(
   }
 ) {
   const template = await prisma.couponTemplate.findFirst({
-    where: { id: templateId, coupleId, isPreset: false, isDeleted: false }
+    where: { id: templateId, coupleId, isDeleted: false }
   })
   if (!template) {
     throw new Error('模板不存在或无法编辑')
@@ -451,7 +448,7 @@ export async function deleteCouponTemplate(
   coupleId: string
 ) {
   const template = await prisma.couponTemplate.findFirst({
-    where: { id: templateId, coupleId, isPreset: false }
+    where: { id: templateId, coupleId }
   })
   if (!template) {
     throw new Error('模板不存在或无法删除')

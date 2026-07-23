@@ -1,5 +1,15 @@
 import { motion, AnimatePresence } from 'motion/react'
-import { X, Plus, ShoppingBag, Coins, Gift, Sparkles, Trash2, Edit2, Check } from 'lucide-react'
+import {
+  X,
+  Plus,
+  ShoppingBag,
+  Coins,
+  Gift,
+  Sparkles,
+  Trash2,
+  Edit2,
+  Check
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { couponService } from '../../services/api'
 import type { CouponTemplate, User } from '../../types'
@@ -8,7 +18,11 @@ import { useConfirm } from '../Confirm'
 
 const CATEGORY_OPTIONS = [
   { value: 'reward', label: '奖励券', color: 'bg-pink-100 text-pink-600' },
-  { value: 'punishment', label: '惩罚券', color: 'bg-orange-100 text-orange-600' },
+  {
+    value: 'punishment',
+    label: '惩罚券',
+    color: 'bg-orange-100 text-orange-600'
+  },
   { value: 'activity', label: '活动券', color: 'bg-blue-100 text-blue-600' },
   { value: 'custom', label: '自定义', color: 'bg-purple-100 text-purple-600' }
 ]
@@ -20,13 +34,19 @@ interface StoreModalProps {
   onBuySuccess: () => void
 }
 
-export default function StoreModal({ myBalance, onClose, onBuySuccess }: StoreModalProps) {
+export default function StoreModal({
+  myBalance,
+  onClose,
+  onBuySuccess
+}: StoreModalProps) {
   const { showToast } = useToast()
   const confirm = useConfirm()
   const [templates, setTemplates] = useState<CouponTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [showEditor, setShowEditor] = useState(false)
-  const [editingTemplate, setEditingTemplate] = useState<CouponTemplate | null>(null)
+  const [editingTemplate, setEditingTemplate] = useState<CouponTemplate | null>(
+    null
+  )
 
   const [form, setForm] = useState({
     name: '',
@@ -51,7 +71,13 @@ export default function StoreModal({ myBalance, onClose, onBuySuccess }: StoreMo
   }, [])
 
   const resetForm = () => {
-    setForm({ name: '', description: '', category: 'reward', price: '', expiryDays: '30' })
+    setForm({
+      name: '',
+      description: '',
+      category: 'reward',
+      price: '',
+      expiryDays: '30'
+    })
     setEditingTemplate(null)
   }
 
@@ -167,11 +193,19 @@ export default function StoreModal({ myBalance, onClose, onBuySuccess }: StoreMo
               </div>
               <div>
                 <h2 className="text-lg font-black text-gray-800">积分商城</h2>
-                <p className="text-xs text-gray-500">我的余额：{myBalance} 积分</p>
+                <p className="text-xs text-gray-500">
+                  我的余额：{myBalance} 积分
+                </p>
               </div>
             </div>
-            <button onClick={onClose} className="p-2 rounded-xl hover:bg-gray-100 transition-colors">
-              <X size={18} className="text-gray-500" />
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
+            >
+              <X
+                size={18}
+                className="text-gray-500"
+              />
             </button>
           </div>
 
@@ -189,13 +223,19 @@ export default function StoreModal({ myBalance, onClose, onBuySuccess }: StoreMo
             </div>
 
             {loading ? (
-              <div className="text-center py-8 text-sm text-gray-400">加载中...</div>
+              <div className="text-center py-8 text-sm text-gray-400">
+                加载中...
+              </div>
             ) : templates.length === 0 ? (
-              <div className="text-center py-8 text-sm text-gray-400">暂无商品</div>
+              <div className="text-center py-8 text-sm text-gray-400">
+                暂无商品
+              </div>
             ) : (
               <div className="space-y-3">
                 {templates.map((template) => {
-                  const category = CATEGORY_OPTIONS.find((c) => c.value === template.category)
+                  const category = CATEGORY_OPTIONS.find(
+                    (c) => c.value === template.category
+                  )
                   return (
                     <motion.div
                       key={template.id}
@@ -206,7 +246,9 @@ export default function StoreModal({ myBalance, onClose, onBuySuccess }: StoreMo
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${category?.color || 'bg-gray-100 text-gray-600'}`}>
+                            <span
+                              className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${category?.color || 'bg-gray-100 text-gray-600'}`}
+                            >
                               {category?.label || template.category}
                             </span>
                             {template.isPreset && (
@@ -215,12 +257,18 @@ export default function StoreModal({ myBalance, onClose, onBuySuccess }: StoreMo
                               </span>
                             )}
                           </div>
-                          <h4 className="font-black text-gray-800">{template.name}</h4>
+                          <h4 className="font-black text-gray-800">
+                            {template.name}
+                          </h4>
                           {template.description && (
-                            <p className="text-xs text-gray-500 mt-0.5">{template.description}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {template.description}
+                            </p>
                           )}
                           <div className="text-xs text-gray-400 mt-1">
-                            {template.expiryDays ? `有效期 ${template.expiryDays} 天` : '永久有效'}
+                            {template.expiryDays
+                              ? `有效期 ${template.expiryDays} 天`
+                              : '永久有效'}
                           </div>
                         </div>
                         <div className="text-right">
@@ -238,30 +286,29 @@ export default function StoreModal({ myBalance, onClose, onBuySuccess }: StoreMo
                           disabled={myBalance < template.price}
                           className={`
                             flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all
-                            ${myBalance >= template.price
-                              ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md shadow-pink-200'
-                              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                            ${
+                              myBalance >= template.price
+                                ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md shadow-pink-200'
+                                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                             }
                           `}
                         >
                           {myBalance >= template.price ? '兑换' : '积分不足'}
                         </motion.button>
-                        {!template.isPreset && (
-                          <>
-                            <button
-                              onClick={() => handleOpenEditor(template)}
-                              className="p-2.5 rounded-xl bg-white text-gray-500 hover:bg-gray-100 transition-colors"
-                            >
-                              <Edit2 size={16} />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(template)}
-                              className="p-2.5 rounded-xl bg-white text-rose-500 hover:bg-rose-50 transition-colors"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </>
-                        )}
+                        <>
+                          <button
+                            onClick={() => handleOpenEditor(template)}
+                            className="p-2.5 rounded-xl bg-white text-gray-500 hover:bg-gray-100 transition-colors"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(template)}
+                            className="p-2.5 rounded-xl bg-white text-rose-500 hover:bg-rose-50 transition-colors"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </>
                       </div>
                     </motion.div>
                   )
@@ -301,33 +348,70 @@ export default function StoreModal({ myBalance, onClose, onBuySuccess }: StoreMo
                   />
                   <textarea
                     value={form.description}
-                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, description: e.target.value })
+                    }
                     placeholder="券描述"
                     rows={2}
                     className="w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300 resize-none"
                   />
                   <select
                     value={form.category}
-                    onChange={(e) => setForm({ ...form, category: e.target.value })}
+                    onChange={(e) =>
+                      setForm({ ...form, category: e.target.value })
+                    }
                     className="w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-100 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-pink-300"
                   >
                     {CATEGORY_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      <option
+                        key={opt.value}
+                        value={opt.value}
+                      >
+                        {opt.label}
+                      </option>
                     ))}
                   </select>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-2 block">
+                      积分价格
+                    </label>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {[10, 30, 50, 100, 200].map((p) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setForm({ ...form, price: String(p) })}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                            Number(form.price) === p
+                              ? 'bg-pink-500 text-white shadow-sm'
+                              : 'bg-gray-50 text-gray-600 hover:bg-pink-50'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      ))}
+                    </div>
                     <input
                       type="number"
                       value={form.price}
-                      onChange={(e) => setForm({ ...form, price: e.target.value })}
-                      placeholder="积分价格"
+                      onChange={(e) =>
+                        setForm({ ...form, price: e.target.value })
+                      }
+                      placeholder="自定义积分"
                       className="w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-100 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-pink-300"
                     />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-2 block">
+                      有效期（天）
+                    </label>
                     <input
                       type="number"
                       value={form.expiryDays}
-                      onChange={(e) => setForm({ ...form, expiryDays: e.target.value })}
-                      placeholder="有效期(天)"
+                      onChange={(e) =>
+                        setForm({ ...form, expiryDays: e.target.value })
+                      }
+                      placeholder="留空表示永不过期"
                       className="w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-100 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-pink-300"
                     />
                   </div>

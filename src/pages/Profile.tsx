@@ -2061,6 +2061,21 @@ export default function Profile({
                     <li className="flex gap-2">
                       <span className="text-orange-500 font-black">•</span>
                       <span>
+                        <strong>每日签到 & 积分</strong>
+                        ：双方各自打卡累计连续天数，获得连续天数 ×
+                        基础分的积分；积分可在情侣间互转。
+                      </span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-orange-500 font-black">•</span>
+                      <span>
+                        <strong>积分商城 & 情侣券</strong>
+                        ：用积分兑换奖励券、惩罚券、活动券或自定义券；券可赠送给对方，支持使用与过期管理。
+                      </span>
+                    </li>
+                    <li className="flex gap-2">
+                      <span className="text-orange-500 font-black">•</span>
+                      <span>
                         <strong>恋爱日记</strong>
                         ：记录两人之间的心情点滴，支持图文和纪念日。
                       </span>
