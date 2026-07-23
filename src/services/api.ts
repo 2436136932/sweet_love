@@ -24,7 +24,13 @@ import {
   PeriodSettings,
   MomentStatusPayload,
   AiGenerateResponse,
-  AiGenerateType
+  AiGenerateType,
+  CheckInStatus,
+  PointOverview,
+  PointTransaction,
+  PointSettings,
+  CouponTemplate,
+  UserCoupon
 } from '../types'
 
 const API_BASE = '/api'
@@ -1037,5 +1043,154 @@ export const kitchenService = {
       headers: getHeaders()
     })
     await ensureOk(res, 'Failed to delete kitchen checkin')
+  }
+}
+
+export const checkInService = {
+  async getStatus(): Promise<CheckInStatus> {
+    const res = await fetch(`${API_BASE}/checkins/status`, {
+      headers: getHeaders()
+    })
+    await ensureOk(res, 'Failed to fetch check-in status')
+    return res.json()
+  },
+  async checkIn(): Promise<{ consecutiveDays: number; pointsEarned: number }> {
+    const res = await fetch(`${API_BASE}/checkins`, {
+      method: 'POST',
+      headers: getHeaders()
+    })
+    await ensureOk(res, 'Check-in failed')
+    return res.json()
+  }
+}
+
+export const pointService = {
+  async getOverview(): Promise<PointOverview> {
+    const res = await fetch(`${API_BASE}/points/overview`, {
+      headers: getHeaders()
+    })
+    await ensureOk(res, 'Failed to fetch point overview')
+    return res.json()
+  },
+  async getTransactions(limit = 50): Promise<PointTransaction[]> {
+    const res = await fetch(`${API_BASE}/points/transactions?limit=${limit}`, {
+      headers: getHeaders()
+    })
+    await ensureOk(res, 'Failed to fetch transactions')
+    return res.json()
+  },
+  async transfer(
+    amount: number,
+    note?: string
+  ): Promise<{ receiverId: string; amount: number }> {
+    const res = await fetch(`${API_BASE}/points/transfer`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ amount, note })
+    })
+    await ensureOk(res, 'Transfer failed')
+    return res.json()
+  },
+  async getSettings(): Promise<PointSettings> {
+    const res = await fetch(`${API_BASE}/points/settings`, {
+      headers: getHeaders()
+    })
+    await ensureOk(res, 'Failed to fetch point settings')
+    return res.json()
+  },
+  async updateSettings(data: {
+    baseScore?: number
+    checkInReminder?: boolean
+  }): Promise<PointSettings> {
+    const res = await fetch(`${API_BASE}/points/settings`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    })
+    await ensureOk(res, 'Failed to update point settings')
+    return res.json()
+  }
+}
+
+export const couponService = {
+  async getTemplates(): Promise<CouponTemplate[]> {
+    const res = await fetch(`${API_BASE}/points/store`, {
+      headers: getHeaders()
+    })
+    await ensureOk(res, 'Failed to fetch store items')
+    return res.json()
+  },
+  async createTemplate(data: {
+    name: string
+    description?: string
+    category: string
+    price: number
+    expiryDays?: number | null
+  }): Promise<CouponTemplate> {
+    const res = await fetch(`${API_BASE}/points/store`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    })
+    await ensureOk(res, 'Failed to create coupon template')
+    return res.json()
+  },
+  async updateTemplate(
+    id: string,
+    data: {
+      name?: string
+      description?: string
+      category?: string
+      price?: number
+      expiryDays?: number | null
+    }
+  ): Promise<CouponTemplate> {
+    const res = await fetch(`${API_BASE}/points/store/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    })
+    await ensureOk(res, 'Failed to update coupon template')
+    return res.json()
+  },
+  async deleteTemplate(id: string): Promise<void> {
+    const res = await fetch(`${API_BASE}/points/store/${id}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    })
+    await ensureOk(res, 'Failed to delete coupon template')
+  },
+  async buy(id: string, note?: string): Promise<UserCoupon> {
+    const res = await fetch(`${API_BASE}/points/store/${id}/buy`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ note })
+    })
+    await ensureOk(res, 'Failed to buy coupon')
+    return res.json()
+  },
+  async getMyCoupons(): Promise<UserCoupon[]> {
+    const res = await fetch(`${API_BASE}/points/coupons`, {
+      headers: getHeaders()
+    })
+    await ensureOk(res, 'Failed to fetch coupons')
+    return res.json()
+  },
+  async send(id: string, note?: string): Promise<{ receiverId: string }> {
+    const res = await fetch(`${API_BASE}/points/coupons/${id}/send`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ note })
+    })
+    await ensureOk(res, 'Failed to send coupon')
+    return res.json()
+  },
+  async use(id: string): Promise<UserCoupon> {
+    const res = await fetch(`${API_BASE}/points/coupons/${id}/use`, {
+      method: 'POST',
+      headers: getHeaders()
+    })
+    await ensureOk(res, 'Failed to use coupon')
+    return res.json()
   }
 }

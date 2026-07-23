@@ -12,6 +12,7 @@ model User {
   username   String
   email      String   @unique
   password   String
+  role       String   @default("user")
   avatar     String?  @db.Text
   bio        String?  @db.Text
   momentStatus String?
@@ -41,6 +42,11 @@ model User {
   periodRecordsCreated PeriodRecord[]
   periodDailyLogsCreated PeriodDailyLog[]
   notifications        Notification[]
+  checkIns             CheckIn[]
+  pointBalances        PointBalance[]
+  pointTransactions    PointTransaction[]
+  createdCouponTemplates CouponTemplate[]
+  ownedCoupons         UserCoupon[]
 
   @@map("users")
 }
@@ -70,6 +76,12 @@ model Couple {
   periodDailyLogs PeriodDailyLog[]
   periodSettings PeriodSettings?
   notifications Notification[]
+  checkIns          CheckIn[]
+  pointBalances     PointBalance[]
+  pointTransactions PointTransaction[]
+  couponTemplates   CouponTemplate[]
+  userCoupons       UserCoupon[]
+  pointSettings     CouplePointSettings?
 
   @@index([userAId])
   @@index([userBId])
@@ -484,4 +496,115 @@ model Notification {
   @@index([userId])
   @@index([coupleId])
   @@map("notifications")
+}
+
+model CheckIn {
+  id              String   @id @default(cuid())
+  date            DateTime @db.Date
+  userId          String
+  coupleId        String
+  consecutiveDays Int      @default(1)
+  pointsEarned    Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  couple Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, coupleId, date])
+  @@index([coupleId, userId, date])
+  @@map("check_ins")
+}
+
+model PointBalance {
+  id          String   @id @default(cuid())
+  userId      String
+  coupleId    String
+  balance     Int      @default(0)
+  totalEarned Int      @default(0)
+  totalSpent  Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  couple Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, coupleId])
+  @@index([coupleId])
+  @@map("point_balances")
+}
+
+model PointTransaction {
+  id              String   @id @default(cuid())
+  userId          String
+  coupleId        String
+  amount          Int
+  type            String   // check_in | transfer_in | transfer_out | purchase | send | receive | use | expire | admin_adjust
+  relatedUserId   String?
+  relatedCouponId String?
+  description     String?  @db.Text
+  createdAt       DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  couple Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+
+  @@index([userId, coupleId, createdAt])
+  @@map("point_transactions")
+}
+
+model CouponTemplate {
+  id          String   @id @default(cuid())
+  coupleId    String
+  name        String
+  description String?  @db.Text
+  category    String   // reward | punishment | activity | custom
+  price       Int
+  expiryDays  Int?     // null 表示永不过期
+  isPreset    Boolean  @default(false)
+  presetKey   String?
+  icon        String?
+  isDeleted   Boolean  @default(false)
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  couple    Couple       @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  createdBy User         @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  coupons   UserCoupon[]
+
+  @@index([coupleId, category])
+  @@map("coupon_templates")
+}
+
+model UserCoupon {
+  id         String    @id @default(cuid())
+  templateId String
+  ownerId    String
+  coupleId   String
+  status     String    // unused | used | expired
+  boughtAt   DateTime  @default(now())
+  usedAt     DateTime?
+  sentAt     DateTime?
+  sentById   String?
+  expiresAt  DateTime?
+  note       String?   @db.Text
+
+  template CouponTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  owner    User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  couple   Couple         @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, status])
+  @@index([coupleId, ownerId])
+  @@map("user_coupons")
+}
+
+model CouplePointSettings {
+  id              String   @id @default(cuid())
+  coupleId        String   @unique
+  baseScore       Int      @default(10)
+  checkInReminder Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  couple Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+
+  @@map("couple_point_settings")
 }

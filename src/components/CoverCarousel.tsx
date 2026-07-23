@@ -49,7 +49,7 @@ function CoverCarousel({
   }
 
   // 用 buildImageUrl 解析每个图片路径
-  const resolvedUrls = images.map(buildImageUrl)
+  const resolvedUrls = images.map((src) => buildImageUrl(src))
 
   return (
     <>

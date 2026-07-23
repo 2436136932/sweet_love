@@ -385,6 +385,103 @@ CREATE TABLE `ai_config` (
   PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- -----------------------------------------------------------------------
+-- 情侣签到 & 积分模块
+-- -----------------------------------------------------------------------
+
+CREATE TABLE `check_ins` (
+  `id` VARCHAR(191) NOT NULL,
+  `date` DATE NOT NULL,
+  `userId` VARCHAR(191) NOT NULL,
+  `coupleId` VARCHAR(191) NOT NULL,
+  `consecutiveDays` INTEGER NOT NULL DEFAULT 1,
+  `pointsEarned` INTEGER NOT NULL DEFAULT 0,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE UNIQUE INDEX `check_ins_userId_coupleId_date_key` ON `check_ins`(`userId`, `coupleId`, `date`);
+CREATE INDEX `check_ins_coupleId_userId_date_idx` ON `check_ins`(`coupleId`, `userId`, `date`);
+
+CREATE TABLE `point_balances` (
+  `id` VARCHAR(191) NOT NULL,
+  `userId` VARCHAR(191) NOT NULL,
+  `coupleId` VARCHAR(191) NOT NULL,
+  `balance` INTEGER NOT NULL DEFAULT 0,
+  `totalEarned` INTEGER NOT NULL DEFAULT 0,
+  `totalSpent` INTEGER NOT NULL DEFAULT 0,
+  `updatedAt` DATETIME(3) NOT NULL,
+  PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE UNIQUE INDEX `point_balances_userId_coupleId_key` ON `point_balances`(`userId`, `coupleId`);
+CREATE INDEX `point_balances_coupleId_idx` ON `point_balances`(`coupleId`);
+
+CREATE TABLE `point_transactions` (
+  `id` VARCHAR(191) NOT NULL,
+  `userId` VARCHAR(191) NOT NULL,
+  `coupleId` VARCHAR(191) NOT NULL,
+  `amount` INTEGER NOT NULL,
+  `type` VARCHAR(191) NOT NULL,
+  `relatedUserId` VARCHAR(191) NULL,
+  `relatedCouponId` VARCHAR(191) NULL,
+  `description` TEXT NULL,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE INDEX `point_transactions_userId_coupleId_createdAt_idx` ON `point_transactions`(`userId`, `coupleId`, `createdAt`);
+
+CREATE TABLE `coupon_templates` (
+  `id` VARCHAR(191) NOT NULL,
+  `coupleId` VARCHAR(191) NOT NULL,
+  `name` VARCHAR(191) NOT NULL,
+  `description` TEXT NULL,
+  `category` VARCHAR(191) NOT NULL,
+  `price` INTEGER NOT NULL,
+  `expiryDays` INTEGER NULL,
+  `isPreset` TINYINT(1) NOT NULL DEFAULT 0,
+  `presetKey` VARCHAR(191) NULL,
+  `icon` VARCHAR(191) NULL,
+  `isDeleted` TINYINT(1) NOT NULL DEFAULT 0,
+  `createdById` VARCHAR(191) NOT NULL,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updatedAt` DATETIME(3) NOT NULL,
+  PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE INDEX `coupon_templates_coupleId_category_idx` ON `coupon_templates`(`coupleId`, `category`);
+
+CREATE TABLE `user_coupons` (
+  `id` VARCHAR(191) NOT NULL,
+  `templateId` VARCHAR(191) NOT NULL,
+  `ownerId` VARCHAR(191) NOT NULL,
+  `coupleId` VARCHAR(191) NOT NULL,
+  `status` VARCHAR(191) NOT NULL,
+  `boughtAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `usedAt` DATETIME(3) NULL,
+  `sentAt` DATETIME(3) NULL,
+  `sentById` VARCHAR(191) NULL,
+  `expiresAt` DATETIME(3) NULL,
+  `note` TEXT NULL,
+  PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE INDEX `user_coupons_ownerId_status_idx` ON `user_coupons`(`ownerId`, `status`);
+CREATE INDEX `user_coupons_coupleId_ownerId_idx` ON `user_coupons`(`coupleId`, `ownerId`);
+
+CREATE TABLE `couple_point_settings` (
+  `id` VARCHAR(191) NOT NULL,
+  `coupleId` VARCHAR(191) NOT NULL,
+  `baseScore` INTEGER NOT NULL DEFAULT 10,
+  `checkInReminder` TINYINT(1) NOT NULL DEFAULT 1,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  `updatedAt` DATETIME(3) NOT NULL,
+  PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE UNIQUE INDEX `couple_point_settings_coupleId_key` ON `couple_point_settings`(`coupleId`);
+
 -- ============================================================================
 -- 外键约束（所有表定义完毕后再添加，避免创建顺序问题）
 -- ============================================================================
@@ -466,3 +563,33 @@ ALTER TABLE `period_daily_logs`
   ADD CONSTRAINT `period_daily_logs_createdById_fkey` FOREIGN KEY (`createdById`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE `period_settings`
   ADD CONSTRAINT `period_settings_coupleId_fkey` FOREIGN KEY (`coupleId`) REFERENCES `couples`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- check-ins / point balances / point transactions
+ALTER TABLE `check_ins`
+  ADD CONSTRAINT `check_ins_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `check_ins`
+  ADD CONSTRAINT `check_ins_coupleId_fkey` FOREIGN KEY (`coupleId`) REFERENCES `couples`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `point_balances`
+  ADD CONSTRAINT `point_balances_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `point_balances`
+  ADD CONSTRAINT `point_balances_coupleId_fkey` FOREIGN KEY (`coupleId`) REFERENCES `couples`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `point_transactions`
+  ADD CONSTRAINT `point_transactions_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `point_transactions`
+  ADD CONSTRAINT `point_transactions_coupleId_fkey` FOREIGN KEY (`coupleId`) REFERENCES `couples`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- coupon templates / user coupons
+ALTER TABLE `coupon_templates`
+  ADD CONSTRAINT `coupon_templates_coupleId_fkey` FOREIGN KEY (`coupleId`) REFERENCES `couples`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `coupon_templates`
+  ADD CONSTRAINT `coupon_templates_createdById_fkey` FOREIGN KEY (`createdById`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `user_coupons`
+  ADD CONSTRAINT `user_coupons_templateId_fkey` FOREIGN KEY (`templateId`) REFERENCES `coupon_templates`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `user_coupons`
+  ADD CONSTRAINT `user_coupons_ownerId_fkey` FOREIGN KEY (`ownerId`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE `user_coupons`
+  ADD CONSTRAINT `user_coupons_coupleId_fkey` FOREIGN KEY (`coupleId`) REFERENCES `couples`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- couple point settings
+ALTER TABLE `couple_point_settings`
+  ADD CONSTRAINT `couple_point_settings_coupleId_fkey` FOREIGN KEY (`coupleId`) REFERENCES `couples`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

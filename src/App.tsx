@@ -17,7 +17,8 @@ import {
   Utensils,
   ChefHat,
   Droplets,
-  Sparkles
+  Sparkles,
+  CalendarCheck
 } from 'lucide-react'
 import {
   PageType,
@@ -39,7 +40,9 @@ import {
   PeriodSummary,
   PeriodDailyLog,
   PeriodSettings,
-  PeriodOverview
+  PeriodOverview,
+  CheckInStatus,
+  PointOverview
 } from './types.ts'
 import {
   diaryService,
@@ -53,7 +56,11 @@ import {
   menuService,
   mealOrderService,
   kitchenService,
-  periodService
+  periodService,
+  notificationListService,
+  NotificationItem,
+  checkInService,
+  pointService
 } from './services/api'
 import { useToast } from './components/Toast'
 import { usePolling } from './hooks/usePolling'
@@ -75,6 +82,9 @@ import Binding from './pages/Binding'
 import MenuOrder from './pages/MenuOrder'
 import CoupleKitchen from './pages/CoupleKitchen'
 import PeriodAssistantPage from './pages/PeriodAssistant'
+import Admin from './pages/Admin'
+import CheckIn from './pages/CheckIn'
+import StoreModal from './components/points/StoreModal'
 
 function daysSince(date?: string) {
   if (!date) return 0
@@ -104,7 +114,9 @@ const HASH_ROUTABLE_PAGES: PageType[] = [
   'profile',
   'menu',
   'kitchen',
-  'period'
+  'period',
+  'admin',
+  'checkin'
 ]
 
 const HASH_ROUTABLE_PAGE_SET = new Set<PageType>(HASH_ROUTABLE_PAGES)
@@ -165,6 +177,11 @@ export default function App() {
   const [periodSettings, setPeriodSettings] = useState<PeriodSettings | null>(
     null
   )
+  const [notifications, setNotifications] = useState<NotificationItem[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [checkInStatus, setCheckInStatus] = useState<CheckInStatus | null>(null)
+  const [pointOverview, setPointOverview] = useState<PointOverview | null>(null)
+  const [isStoreOpen, setIsStoreOpen] = useState(false)
 
   useEffect(() => {
     if (!isKnownHashRoute()) {
@@ -322,6 +339,26 @@ export default function App() {
     setPeriodSettings(periodData.settings)
   }, [user])
 
+  const refreshCheckIn = useCallback(async () => {
+    if (!user?.partnerId) return
+    try {
+      const status = await checkInService.getStatus()
+      setCheckInStatus(status)
+    } catch (error) {
+      console.error('Failed to refresh check-in:', error)
+    }
+  }, [user])
+
+  const refreshPoints = useCallback(async () => {
+    if (!user?.partnerId) return
+    try {
+      const overview = await pointService.getOverview()
+      setPointOverview(overview)
+    } catch (error) {
+      console.error('Failed to refresh points:', error)
+    }
+  }, [user])
+
   // Auth and Fetch initial data
   useEffect(() => {
     const initAuth = async () => {
@@ -359,7 +396,9 @@ export default function App() {
           recipeData,
           shoppingData,
           checkinData,
-          periodData
+          periodData,
+          checkInStatusData,
+          pointOverviewData
         ] = await Promise.all([
           diaryService.getAll(),
           todoService.getAll(),
@@ -384,7 +423,9 @@ export default function App() {
                 logs: [],
                 summary: null,
                 settings: null
-              })
+              }),
+          user.partnerId ? checkInService.getStatus() : Promise.resolve(null),
+          user.partnerId ? pointService.getOverview() : Promise.resolve(null)
         ])
         setDiaries(diaryData)
         setTodos(todoData)
@@ -402,6 +443,8 @@ export default function App() {
         setPeriodLogs(periodData.logs)
         setPeriodSummary(periodData.summary)
         setPeriodSettings(periodData.settings)
+        if (checkInStatusData) setCheckInStatus(checkInStatusData)
+        if (pointOverviewData) setPointOverview(pointOverviewData)
       } catch (error) {
         console.error('Failed to fetch data:', error)
         showToast(
@@ -462,6 +505,42 @@ export default function App() {
     intervalMs: 3000
   })
 
+  const loadNotifications = useCallback(async () => {
+    if (!user) return
+    try {
+      const data = await notificationListService.getAll()
+      setNotifications(data.notifications)
+      setUnreadCount(data.unreadCount)
+    } catch (err) {
+      console.error('Failed to load notifications', err)
+    }
+  }, [user])
+
+  const checkNotifications = useCallback(async () => {
+    if (!user) return
+    try {
+      await notificationListService.check()
+      await loadNotifications()
+    } catch (err) {
+      console.error('Failed to check notifications', err)
+    }
+  }, [loadNotifications, user])
+
+  usePolling(checkNotifications, {
+    enabled: Boolean(user),
+    intervalMs: 60000
+  })
+
+  usePolling(refreshCheckIn, {
+    enabled: Boolean(user),
+    intervalMs: 30000
+  })
+
+  usePolling(refreshPoints, {
+    enabled: Boolean(user),
+    intervalMs: 30000
+  })
+
   useEffect(() => {
     if (!user) return
 
@@ -475,6 +554,10 @@ export default function App() {
         if (currentPage === 'menu') await refreshMenu()
         if (currentPage === 'kitchen') await refreshKitchen()
         if (currentPage === 'period') await refreshPeriods()
+        if (currentPage === 'checkin') {
+          await refreshCheckIn()
+          await refreshPoints()
+        }
       } catch (error) {
         console.error('Failed to refresh page:', error)
         showToast(
@@ -508,6 +591,8 @@ export default function App() {
     refreshMenu,
     refreshPeriods,
     refreshTodos,
+    refreshCheckIn,
+    refreshPoints,
     showToast,
     user
   ])
@@ -554,9 +639,15 @@ export default function App() {
             albumImages={albumImages}
             periodRecords={periodRecords}
             periodSummary={periodSummary}
+            notifications={notifications}
+            unreadCount={unreadCount}
             onUpdateRatings={(newRatings) => setDailyRatings(newRatings)}
             onUpdateUser={(updatedUser) => setUser(updatedUser)}
             onOpenPeriod={() => navigateToPage('period')}
+            onNotificationsChange={(newNotifications, newUnreadCount) => {
+              setNotifications(newNotifications)
+              setUnreadCount(newUnreadCount)
+            }}
           />
         )
       case 'anniversaries':
@@ -805,7 +896,9 @@ export default function App() {
               updatePeriodState(await periodService.updateSettings(settings))
             }
             onSyncCareTodos={async () => {
-              const result = await periodService.syncCareTodos(todayString())
+              const result = await periodService.syncCareTodos(
+                new Date().toISOString().slice(0, 10)
+              )
               if (!result.skipped && (result.created > 0 || result.updated > 0))
                 await refreshTodos()
               return result
@@ -839,6 +932,21 @@ export default function App() {
             }}
           />
         )
+      case 'admin':
+        return <Admin onBack={() => navigateToPage('profile')} />
+      case 'checkin':
+        return (
+          <CheckIn
+            user={user}
+            checkInStatus={checkInStatus}
+            pointOverview={pointOverview}
+            onCheckIn={async () => {
+              await refreshCheckIn()
+              await refreshPoints()
+            }}
+            onOpenStore={() => setIsStoreOpen(true)}
+          />
+        )
       default:
         return (
           <Home
@@ -852,9 +960,15 @@ export default function App() {
             albumImages={albumImages}
             periodRecords={periodRecords}
             periodSummary={periodSummary}
+            notifications={notifications}
+            unreadCount={unreadCount}
             onUpdateRatings={(newRatings) => setDailyRatings(newRatings)}
             onUpdateUser={(updatedUser) => setUser(updatedUser)}
             onOpenPeriod={() => navigateToPage('period')}
+            onNotificationsChange={(newNotifications, newUnreadCount) => {
+              setNotifications(newNotifications)
+              setUnreadCount(newUnreadCount)
+            }}
           />
         )
     }
@@ -877,6 +991,7 @@ export default function App() {
 
   const mobileNavItems = [
     { id: 'home', icon: Heart, label: '首页' },
+    { id: 'checkin', icon: CalendarCheck, label: '签到' },
     { id: 'diary', icon: Book, label: '日记' },
     { id: 'album', icon: ImageIcon, label: '相册' },
     { id: 'todo', icon: CheckSquare, label: '100件' },
@@ -892,6 +1007,12 @@ export default function App() {
   const usesFixedHeaderLayout = fixedHeaderPages.includes(currentPage)
   const desktopNavItems = [
     { id: 'home', icon: Heart, label: '首页', description: '今日总览' },
+    {
+      id: 'checkin',
+      icon: CalendarCheck,
+      label: '签到',
+      description: `${pointOverview?.myStreak || 0} 天连续 · ${pointOverview?.myBalance || 0} 积分`
+    },
     {
       id: 'diary',
       icon: Book,
@@ -1216,7 +1337,8 @@ export default function App() {
           {/* Navigation Bar - Only show when bound */}
           {user?.partnerId &&
             currentPage !== 'messages' &&
-            currentPage !== 'period' && (
+            currentPage !== 'period' &&
+            currentPage !== 'admin' && (
               <nav className="app-bottom-nav absolute left-1/2 -translate-x-1/2 w-[90%] bg-white/60 backdrop-blur-2xl border border-white/50 h-16 rounded-[2rem] shadow-xl flex items-center justify-around px-2 z-50 md:hidden">
                 {mobileNavItems.map((item) => (
                   <button
@@ -1237,6 +1359,18 @@ export default function App() {
                 ))}
               </nav>
             )}
+
+          {/* 积分商城弹窗 */}
+          {isStoreOpen && user && (
+            <StoreModal
+              user={user}
+              myBalance={pointOverview?.myBalance || 0}
+              onClose={() => setIsStoreOpen(false)}
+              onBuySuccess={async () => {
+                await refreshPoints()
+              }}
+            />
+          )}
         </div>
       </div>
     </ThemeProvider>

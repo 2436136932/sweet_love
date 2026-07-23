@@ -141,9 +141,12 @@ export default function Home({
   albumImages,
   periodRecords,
   periodSummary,
+  notifications,
+  unreadCount,
   onUpdateRatings,
   onUpdateUser,
-  onOpenPeriod
+  onOpenPeriod,
+  onNotificationsChange
 }: {
   user: User
   onNavigate: (page: PageType) => void
@@ -155,9 +158,15 @@ export default function Home({
   albumImages: AlbumImage[]
   periodRecords: PeriodRecord[]
   periodSummary: PeriodSummary | null
+  notifications: NotificationItem[]
+  unreadCount: number
   onUpdateRatings: (ratings: DailyRating[]) => void
   onUpdateUser: (user: User) => void
   onOpenPeriod: () => void
+  onNotificationsChange: (
+    notifications: NotificationItem[],
+    unreadCount: number
+  ) => void
 }) {
   const { showToast } = useToast()
   const [ratingScore, setRatingScore] = useState(0)
@@ -177,8 +186,6 @@ export default function Home({
   const [loveAiOpen, setLoveAiOpen] = useState(false)
   const [coverCarousel, setCoverCarousel] = useState<string[] | null>(null)
   const [notifOpen, setNotifOpen] = useState(false)
-  const [notifications, setNotifications] = useState<NotificationItem[]>([])
-  const [unreadCount, setUnreadCount] = useState(0)
   const partner = user.partner
   const userAvatar =
     user.avatar ||
@@ -222,27 +229,13 @@ export default function Home({
     setCoverCarousel(couple?.coverCarousel ?? null)
   }, [couple?.coverCarousel])
 
-  // 加载通知
-  useEffect(() => {
-    loadNotifications()
-  }, [])
-
-  const loadNotifications = async () => {
-    try {
-      const data = await notificationListService.getAll()
-      setNotifications(data.notifications)
-      setUnreadCount(data.unreadCount)
-    } catch (err) {
-      console.error('Failed to load notifications', err)
-    }
-  }
-
   const handleNotifOpen = async () => {
     setNotifOpen(true)
     // 自动检查新提醒
     try {
       await notificationListService.check()
-      await loadNotifications()
+      const data = await notificationListService.getAll()
+      onNotificationsChange(data.notifications, data.unreadCount)
     } catch (err) {
       console.error('Failed to check notifications', err)
     }
@@ -251,10 +244,10 @@ export default function Home({
   const handleMarkRead = async (id: string) => {
     try {
       await notificationListService.markRead(id)
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+      const updated = notifications.map((n) =>
+        n.id === id ? { ...n, read: true } : n
       )
-      setUnreadCount((prev) => Math.max(0, prev - 1))
+      onNotificationsChange(updated, Math.max(0, unreadCount - 1))
     } catch (err) {
       console.error('Failed to mark read', err)
     }
@@ -263,8 +256,10 @@ export default function Home({
   const handleMarkAllRead = async () => {
     try {
       await notificationListService.markAllRead()
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-      setUnreadCount(0)
+      onNotificationsChange(
+        notifications.map((n) => ({ ...n, read: true })),
+        0
+      )
     } catch (err) {
       console.error('Failed to mark all read', err)
     }
@@ -273,12 +268,10 @@ export default function Home({
   const handleDeleteNotif = async (id: string) => {
     try {
       await notificationListService.delete(id)
-      setNotifications((prev) => prev.filter((n) => n.id !== id))
-      setUnreadCount((prev) =>
-        Math.max(
-          0,
-          prev - (notifications.find((n) => n.id === id)?.read ? 0 : 1)
-        )
+      const wasRead = notifications.find((n) => n.id === id)?.read
+      onNotificationsChange(
+        notifications.filter((n) => n.id !== id),
+        Math.max(0, unreadCount - (wasRead ? 0 : 1))
       )
     } catch (err) {
       console.error('Failed to delete notification', err)

@@ -9,7 +9,12 @@ import { chatWithAi, AiError } from './ai.js'
 import { env } from './config.js'
 import { prisma } from './db.js'
 import { normalizeImageKey, normalizeImageKeyArray } from './imageKey.js'
-import { authenticate, type AuthenticatedRequest } from './middleware/auth.js'
+import {
+  authenticate,
+  requireAdmin,
+  type AuthenticatedRequest
+} from './middleware/auth.js'
+import * as couplePoints from './services/couplePointsService.js'
 
 const router = express.Router()
 
@@ -17,6 +22,7 @@ const publicUserSelect = {
   id: true,
   username: true,
   email: true,
+  role: true,
   avatar: true,
   bio: true,
   momentStatus: true,
@@ -2619,7 +2625,8 @@ router.post('/notifications/check', authenticate, async (req, res) => {
     return res.status(404).json({ message: 'Relationship not found' })
   }
 
-  const today = new Date()
+  const now = new Date()
+  const today = new Date(now)
   today.setHours(0, 0, 0, 0)
   const created: string[] = []
 
@@ -2630,8 +2637,18 @@ router.post('/notifications/check', authenticate, async (req, res) => {
 
   for (const ann of anniversaries) {
     const annDate = new Date(ann.date)
+    const currentYear = today.getFullYear()
+    annDate.setFullYear(currentYear)
     annDate.setHours(0, 0, 0, 0)
-    const diffDays = Math.ceil((annDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+
+    // 如果今年的纪念日已过，则看明年
+    if (annDate.getTime() < today.getTime()) {
+      annDate.setFullYear(currentYear + 1)
+    }
+
+    const diffDays = Math.ceil(
+      (annDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+    )
 
     if (diffDays >= 0 && diffDays <= 3) {
       const existing = await prisma.notification.findFirst({
@@ -2648,7 +2665,10 @@ router.post('/notifications/check', authenticate, async (req, res) => {
           data: {
             type: 'anniversary',
             title: `纪念日提醒：${ann.title}`,
-            message: diffDays === 0 ? `今天是${ann.title}！` : `距离${ann.title}还有${diffDays}天`,
+            message:
+              diffDays === 0
+                ? `今天是${ann.title}！`
+                : `距离${ann.title}还有${diffDays}天`,
             userId: currentUser.id,
             coupleId: couple.id
           }
@@ -2665,7 +2685,7 @@ router.post('/notifications/check', authenticate, async (req, res) => {
     const reminderTime = new Date(today)
     reminderTime.setHours(hour, minute, 0, 0)
 
-    if (today >= reminderTime) {
+    if (now >= reminderTime) {
       const existing = await prisma.notification.findFirst({
         where: {
           userId: currentUser.id,
@@ -2674,7 +2694,15 @@ router.post('/notifications/check', authenticate, async (req, res) => {
         }
       })
 
-      if (!existing) {
+      // 如果今天已经评过分，就不再提醒
+      const hasRatedToday = await prisma.dailyRating.findFirst({
+        where: {
+          userId: currentUser.id,
+          date: { gte: today }
+        }
+      })
+
+      if (!existing && !hasRatedToday) {
         await prisma.notification.create({
           data: {
             type: 'daily_rating',
@@ -2691,11 +2719,13 @@ router.post('/notifications/check', authenticate, async (req, res) => {
 
   // 3. 检查待办提醒
   if (notifConfig?.todoReminder?.enabled) {
+    const tomorrow = new Date(today)
+    tomorrow.setDate(today.getDate() + 1)
     const todos = await prisma.todo.findMany({
       where: {
         userId: currentUser.id,
         completed: false,
-        targetDate: { lte: today }
+        targetDate: { lt: tomorrow }
       }
     })
 
@@ -2735,14 +2765,41 @@ router.get('/privacy/personal-info', authenticate, async (req, res) => {
   const couple = await findCurrentCouple(currentUser.id)
 
   // 获取用户所有数据
-  const [diaries, todos, messages, ratings, anniversaries, albumImages, notifications] = await Promise.all([
-    prisma.diary.findMany({ where: { userId: currentUser.id }, orderBy: { createdAt: 'desc' } }),
-    prisma.todo.findMany({ where: { userId: currentUser.id }, orderBy: { createdAt: 'desc' } }),
-    prisma.message.findMany({ where: { userId: currentUser.id }, orderBy: { createdAt: 'desc' }, take: 100 }),
-    prisma.dailyRating.findMany({ where: { userId: currentUser.id }, orderBy: { date: 'desc' } }),
+  const [
+    diaries,
+    todos,
+    messages,
+    ratings,
+    anniversaries,
+    albumImages,
+    notifications
+  ] = await Promise.all([
+    prisma.diary.findMany({
+      where: { userId: currentUser.id },
+      orderBy: { createdAt: 'desc' }
+    }),
+    prisma.todo.findMany({
+      where: { userId: currentUser.id },
+      orderBy: { createdAt: 'desc' }
+    }),
+    prisma.message.findMany({
+      where: { userId: currentUser.id },
+      orderBy: { createdAt: 'desc' },
+      take: 100
+    }),
+    prisma.dailyRating.findMany({
+      where: { userId: currentUser.id },
+      orderBy: { date: 'desc' }
+    }),
     prisma.anniversary.findMany({ where: { userId: currentUser.id } }),
-    prisma.albumImage.findMany({ where: { userId: currentUser.id }, orderBy: { createdAt: 'desc' } }),
-    prisma.notification.findMany({ where: { userId: currentUser.id }, orderBy: { createdAt: 'desc' } })
+    prisma.albumImage.findMany({
+      where: { userId: currentUser.id },
+      orderBy: { createdAt: 'desc' }
+    }),
+    prisma.notification.findMany({
+      where: { userId: currentUser.id },
+      orderBy: { createdAt: 'desc' }
+    })
   ])
 
   res.json({
@@ -2755,12 +2812,14 @@ router.get('/privacy/personal-info', authenticate, async (req, res) => {
       inviteCode: currentUser.inviteCode,
       createdAt: currentUser.createdAt
     },
-    couple: couple ? {
-      id: couple.id,
-      name: couple.name,
-      startDate: couple.startDate,
-      bio: couple.bio
-    } : null,
+    couple: couple
+      ? {
+          id: couple.id,
+          name: couple.name,
+          startDate: couple.startDate,
+          bio: couple.bio
+        }
+      : null,
     stats: {
       diaries: diaries.length,
       todos: todos.length,
@@ -2775,7 +2834,12 @@ router.get('/privacy/personal-info', authenticate, async (req, res) => {
     messages,
     ratings,
     anniversaries,
-    albumImages: albumImages.map(img => ({ id: img.id, src: img.src, caption: img.caption, createdAt: img.createdAt })),
+    albumImages: albumImages.map((img) => ({
+      id: img.id,
+      src: img.src,
+      title: img.title,
+      createdAt: img.createdAt
+    })),
     notifications
   })
 })
@@ -2836,17 +2900,92 @@ router.get('/privacy/export-data', authenticate, async (req, res) => {
   const couple = await findCurrentCouple(currentUser.id)
 
   // 收集所有数据
-  const [diaries, todos, messages, ratings, anniversaries, albumImages, notifications, mealOrders, kitchenRecipes, periodRecords] = await Promise.all([
-    prisma.diary.findMany({ where: { userId: currentUser.id }, orderBy: { createdAt: 'desc' } }),
-    prisma.todo.findMany({ where: { userId: currentUser.id }, orderBy: { createdAt: 'desc' } }),
-    prisma.message.findMany({ where: { userId: currentUser.id }, orderBy: { createdAt: 'desc' } }),
-    prisma.dailyRating.findMany({ where: { userId: currentUser.id }, orderBy: { date: 'desc' } }),
+  const [
+    diaries,
+    todos,
+    messages,
+    ratings,
+    anniversaries,
+    albumImages,
+    notifications,
+    mealOrders,
+    kitchenRecipes,
+    periodRecords,
+    checkIns,
+    pointBalances,
+    pointTransactions,
+    couponTemplates,
+    userCoupons
+  ] = await Promise.all([
+    prisma.diary.findMany({
+      where: { userId: currentUser.id },
+      orderBy: { createdAt: 'desc' }
+    }),
+    prisma.todo.findMany({
+      where: { userId: currentUser.id },
+      orderBy: { createdAt: 'desc' }
+    }),
+    prisma.message.findMany({
+      where: { userId: currentUser.id },
+      orderBy: { createdAt: 'desc' }
+    }),
+    prisma.dailyRating.findMany({
+      where: { userId: currentUser.id },
+      orderBy: { date: 'desc' }
+    }),
     prisma.anniversary.findMany({ where: { userId: currentUser.id } }),
-    prisma.albumImage.findMany({ where: { userId: currentUser.id }, orderBy: { createdAt: 'desc' } }),
-    prisma.notification.findMany({ where: { userId: currentUser.id }, orderBy: { createdAt: 'desc' } }),
-    couple ? prisma.mealOrderItem.findMany({ where: { coupleId: couple.id }, orderBy: { date: 'desc' } }) : [],
-    couple ? prisma.kitchenRecipe.findMany({ where: { coupleId: couple.id } }) : [],
-    couple ? prisma.periodRecord.findMany({ where: { coupleId: couple.id }, orderBy: { startDate: 'desc' } }) : []
+    prisma.albumImage.findMany({
+      where: { userId: currentUser.id },
+      orderBy: { createdAt: 'desc' }
+    }),
+    prisma.notification.findMany({
+      where: { userId: currentUser.id },
+      orderBy: { createdAt: 'desc' }
+    }),
+    couple
+      ? prisma.mealOrderItem.findMany({
+          where: { coupleId: couple.id },
+          orderBy: { date: 'desc' }
+        })
+      : [],
+    couple
+      ? prisma.kitchenRecipe.findMany({ where: { coupleId: couple.id } })
+      : [],
+    couple
+      ? prisma.periodRecord.findMany({
+          where: { coupleId: couple.id },
+          orderBy: { startDate: 'desc' }
+        })
+      : [],
+    couple
+      ? prisma.checkIn.findMany({
+          where: { coupleId: couple.id, userId: currentUser.id },
+          orderBy: { date: 'desc' }
+        })
+      : [],
+    couple
+      ? prisma.pointBalance.findMany({
+          where: { coupleId: couple.id, userId: currentUser.id }
+        })
+      : [],
+    couple
+      ? prisma.pointTransaction.findMany({
+          where: { coupleId: couple.id, userId: currentUser.id },
+          orderBy: { createdAt: 'desc' }
+        })
+      : [],
+    couple
+      ? prisma.couponTemplate.findMany({
+          where: { coupleId: couple.id, isDeleted: false },
+          orderBy: { createdAt: 'desc' }
+        })
+      : [],
+    couple
+      ? prisma.userCoupon.findMany({
+          where: { coupleId: couple.id, ownerId: currentUser.id },
+          orderBy: { boughtAt: 'desc' }
+        })
+      : []
   ])
 
   const exportData = {
@@ -2861,31 +3000,38 @@ router.get('/privacy/export-data', authenticate, async (req, res) => {
       inviteCode: currentUser.inviteCode,
       createdAt: currentUser.createdAt
     },
-    couple: couple ? {
-      id: couple.id,
-      name: couple.name,
-      startDate: couple.startDate,
-      bio: couple.bio,
-      themeConfig: couple.themeConfig,
-      notificationConfig: couple.notificationConfig
-    } : null,
+    couple: couple
+      ? {
+          id: couple.id,
+          name: couple.name,
+          startDate: couple.startDate,
+          bio: couple.bio,
+          themeConfig: couple.themeConfig,
+          notificationConfig: couple.notificationConfig
+        }
+      : null,
     data: {
       diaries,
       todos,
       messages,
       ratings,
       anniversaries,
-      albumImages: albumImages.map(img => ({
+      albumImages: albumImages.map((img) => ({
         id: img.id,
         src: img.src,
-        caption: img.caption,
+        title: img.title,
         isFeatured: img.isFeatured,
         createdAt: img.createdAt
       })),
       notifications,
       mealOrders,
       kitchenRecipes,
-      periodRecords
+      periodRecords,
+      checkIns,
+      pointBalances,
+      pointTransactions,
+      couponTemplates,
+      userCoupons
     },
     stats: {
       totalDiaries: diaries.length,
@@ -2897,14 +3043,22 @@ router.get('/privacy/export-data', authenticate, async (req, res) => {
       totalNotifications: notifications.length,
       totalMealOrders: mealOrders.length,
       totalKitchenRecipes: kitchenRecipes.length,
-      totalPeriodRecords: periodRecords.length
+      totalPeriodRecords: periodRecords.length,
+      totalCheckIns: checkIns.length,
+      totalPointBalances: pointBalances.length,
+      totalPointTransactions: pointTransactions.length,
+      totalCouponTemplates: couponTemplates.length,
+      totalUserCoupons: userCoupons.length
     }
   }
 
   // 返回 JSON 文件
   const fileName = `sweet_love_export_${currentUser.username}_${Date.now()}.json`
   res.setHeader('Content-Type', 'application/json')
-  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`)
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${encodeURIComponent(fileName)}"`
+  )
   res.json(exportData)
 })
 
@@ -2913,7 +3067,12 @@ router.post('/privacy/import-data', authenticate, async (req, res) => {
   const currentUser = (req as AuthenticatedRequest).user
   const importData = req.body
 
-  if (!importData || !importData.version || !importData.user || !importData.data) {
+  if (
+    !importData ||
+    !importData.version ||
+    !importData.user ||
+    !importData.data
+  ) {
     return res.status(400).json({ message: '导入文件格式错误' })
   }
 
@@ -2922,7 +3081,11 @@ router.post('/privacy/import-data', authenticate, async (req, res) => {
   }
 
   // 验证文件完整性
-  if (!importData.data.diaries || !importData.data.todos || !importData.data.messages) {
+  if (
+    !importData.data.diaries ||
+    !importData.data.todos ||
+    !importData.data.messages
+  ) {
     return res.status(400).json({ message: '导入文件数据不完整' })
   }
 
@@ -2937,7 +3100,12 @@ router.post('/privacy/import-data', authenticate, async (req, res) => {
     notifications: 0,
     mealOrders: 0,
     kitchenRecipes: 0,
-    periodRecords: 0
+    periodRecords: 0,
+    checkIns: 0,
+    pointBalances: 0,
+    pointTransactions: 0,
+    couponTemplates: 0,
+    userCoupons: 0
   }
 
   try {
@@ -2945,7 +3113,6 @@ router.post('/privacy/import-data', authenticate, async (req, res) => {
     for (const diary of importData.data.diaries || []) {
       await prisma.diary.create({
         data: {
-          title: diary.title,
           content: diary.content,
           mood: diary.mood,
           date: diary.date,
@@ -2975,6 +3142,7 @@ router.post('/privacy/import-data', authenticate, async (req, res) => {
       await prisma.message.create({
         data: {
           content: msg.content,
+          senderId: msg.senderId || currentUser.id,
           timestamp: msg.timestamp,
           userId: currentUser.id
         }
@@ -3017,7 +3185,8 @@ router.post('/privacy/import-data', authenticate, async (req, res) => {
       await prisma.albumImage.create({
         data: {
           src: img.src,
-          caption: img.caption,
+          title: img.title || 'photo',
+          date: img.date ? new Date(img.date) : new Date(),
           isFeatured: img.isFeatured || false,
           userId: currentUser.id
         }
@@ -3102,6 +3271,136 @@ router.post('/privacy/import-data', authenticate, async (req, res) => {
           }
         })
         imported.periodRecords++
+      }
+
+      // 导入签到记录（按日期去重）
+      for (const checkIn of importData.data.checkIns || []) {
+        try {
+          await prisma.checkIn.upsert({
+            where: {
+              userId_coupleId_date: {
+                userId: currentUser.id,
+                coupleId: couple.id,
+                date: checkIn.date
+              }
+            },
+            update: {
+              consecutiveDays: checkIn.consecutiveDays,
+              pointsEarned: checkIn.pointsEarned
+            },
+            create: {
+              date: checkIn.date,
+              userId: currentUser.id,
+              coupleId: couple.id,
+              consecutiveDays: checkIn.consecutiveDays || 1,
+              pointsEarned: checkIn.pointsEarned || 0
+            }
+          })
+          imported.checkIns++
+        } catch {
+          // 跳过异常记录
+        }
+      }
+
+      // 导入积分余额（按用户去重）
+      for (const balance of importData.data.pointBalances || []) {
+        try {
+          await prisma.pointBalance.upsert({
+            where: {
+              userId_coupleId: {
+                userId: currentUser.id,
+                coupleId: couple.id
+              }
+            },
+            update: {
+              balance: balance.balance,
+              totalEarned: balance.totalEarned,
+              totalSpent: balance.totalSpent
+            },
+            create: {
+              userId: currentUser.id,
+              coupleId: couple.id,
+              balance: balance.balance || 0,
+              totalEarned: balance.totalEarned || 0,
+              totalSpent: balance.totalSpent || 0
+            }
+          })
+          imported.pointBalances++
+        } catch {
+          // 跳过异常记录
+        }
+      }
+
+      // 导入积分流水
+      for (const tx of importData.data.pointTransactions || []) {
+        try {
+          await prisma.pointTransaction.create({
+            data: {
+              userId: currentUser.id,
+              coupleId: couple.id,
+              amount: tx.amount,
+              type: tx.type,
+              relatedUserId:
+                tx.relatedUserId === currentUser.id ? currentUser.id : null,
+              description: tx.description,
+              createdAt: tx.createdAt
+            }
+          })
+          imported.pointTransactions++
+        } catch {
+          // 跳过异常记录
+        }
+      }
+
+      // 导入券模板并建立旧 ID 映射
+      const templateIdMap = new Map<string, string>()
+      for (const template of importData.data.couponTemplates || []) {
+        try {
+          const created = await prisma.couponTemplate.create({
+            data: {
+              coupleId: couple.id,
+              name: template.name,
+              description: template.description,
+              category: template.category,
+              price: template.price,
+              expiryDays: template.expiryDays,
+              isPreset: template.isPreset || false,
+              presetKey: template.presetKey,
+              icon: template.icon,
+              createdById: currentUser.id
+            }
+          })
+          templateIdMap.set(template.id, created.id)
+          imported.couponTemplates++
+        } catch {
+          // 跳过异常记录
+        }
+      }
+
+      // 导入用户券（使用新模板 ID）
+      for (const coupon of importData.data.userCoupons || []) {
+        const newTemplateId = templateIdMap.get(coupon.templateId)
+        if (!newTemplateId) continue
+        try {
+          await prisma.userCoupon.create({
+            data: {
+              templateId: newTemplateId,
+              ownerId: currentUser.id,
+              coupleId: couple.id,
+              status: coupon.status,
+              boughtAt: coupon.boughtAt,
+              usedAt: coupon.usedAt,
+              sentAt: coupon.sentAt,
+              sentById:
+                coupon.sentById === currentUser.id ? currentUser.id : null,
+              expiresAt: coupon.expiresAt,
+              note: coupon.note
+            }
+          })
+          imported.userCoupons++
+        } catch {
+          // 跳过异常记录
+        }
       }
     }
 
@@ -4990,6 +5289,344 @@ router.delete('/messages/:id', authenticate, async (req, res) => {
   }
   await prisma.message.delete({ where: { id: req.params.id } })
   res.status(204).send()
+})
+
+// ============================================================================
+// 管理员 API
+// ============================================================================
+
+// 1. 获取用户列表（所有用户，非敏感信息）
+router.get('/admin/users', requireAdmin, async (_req, res) => {
+  const users = await prisma.user.findMany({
+    select: {
+      id: true,
+      username: true,
+      email: true,
+      role: true,
+      partnerId: true,
+      createdAt: true
+    },
+    orderBy: { createdAt: 'desc' }
+  })
+  res.json(users)
+})
+
+// 2. 修改用户角色
+router.put('/admin/users/:id/role', requireAdmin, async (req, res) => {
+  const { role } = req.body
+  if (!['user', 'admin'].includes(role)) {
+    return res
+      .status(400)
+      .json({ message: 'Invalid role, must be "user" or "admin"' })
+  }
+  const user = await prisma.user.update({
+    where: { id: req.params.id },
+    data: { role },
+    select: { id: true, username: true, email: true, role: true }
+  })
+  res.json(user)
+})
+
+// 3. 获取所有情侣关系
+router.get('/admin/couples', requireAdmin, async (_req, res) => {
+  const couples = await prisma.couple.findMany({
+    include: {
+      userA: { select: { id: true, username: true, email: true } },
+      userB: { select: { id: true, username: true, email: true } }
+    },
+    orderBy: { createdAt: 'desc' }
+  })
+  res.json(couples)
+})
+
+// 4. 获取统计数据
+router.get('/admin/stats', requireAdmin, async (_req, res) => {
+  const [userCount, coupleCount, diaryCount, albumCount, messageCount] =
+    await Promise.all([
+      prisma.user.count(),
+      prisma.couple.count(),
+      prisma.diary.count(),
+      prisma.albumImage.count(),
+      prisma.message.count()
+    ])
+  res.json({ userCount, coupleCount, diaryCount, albumCount, messageCount })
+})
+
+// ============================================================================
+// 情侣签到 & 积分模块
+// ============================================================================
+
+// 签到状态
+router.get('/checkins/status', authenticate, async (req, res) => {
+  const user = (req as AuthenticatedRequest).user
+  const couple = await couplePoints.ensureCouple(user.id)
+  if (!couple) {
+    return res.status(403).json({ message: '未绑定情侣关系' })
+  }
+  const status = await couplePoints.getCheckInStatus(user.id, couple.id)
+  res.json(status)
+})
+
+// 执行签到
+router.post('/checkins', authenticate, async (req, res) => {
+  const user = (req as AuthenticatedRequest).user
+  const couple = await couplePoints.ensureCouple(user.id)
+  if (!couple) {
+    return res.status(403).json({ message: '未绑定情侣关系' })
+  }
+  try {
+    const result = await couplePoints.performCheckIn(user.id, couple.id)
+    res.json(result)
+  } catch (err) {
+    res
+      .status(400)
+      .json({ message: err instanceof Error ? err.message : '签到失败' })
+  }
+})
+
+// 积分概览
+router.get('/points/overview', authenticate, async (req, res) => {
+  const user = (req as AuthenticatedRequest).user
+  const couple = await couplePoints.ensureCouple(user.id)
+  if (!couple) {
+    return res.status(403).json({ message: '未绑定情侣关系' })
+  }
+  const overview = await couplePoints.getPointOverview(user.id, couple.id)
+  res.json(overview)
+})
+
+// 积分流水
+router.get('/points/transactions', authenticate, async (req, res) => {
+  const user = (req as AuthenticatedRequest).user
+  const couple = await couplePoints.ensureCouple(user.id)
+  if (!couple) {
+    return res.status(403).json({ message: '未绑定情侣关系' })
+  }
+  const limit = Math.min(Number(req.query.limit) || 50, 100)
+  const transactions = await couplePoints.getTransactions(
+    user.id,
+    couple.id,
+    limit
+  )
+  res.json(transactions)
+})
+
+// 积分转账
+router.post('/points/transfer', authenticate, async (req, res) => {
+  const user = (req as AuthenticatedRequest).user
+  const couple = await couplePoints.ensureCouple(user.id)
+  if (!couple) {
+    return res.status(403).json({ message: '未绑定情侣关系' })
+  }
+  const { amount, note } = req.body
+  try {
+    const result = await couplePoints.transferPoints(
+      user.id,
+      couple.id,
+      Number(amount),
+      note
+    )
+    res.json(result)
+  } catch (err) {
+    res
+      .status(400)
+      .json({ message: err instanceof Error ? err.message : '转账失败' })
+  }
+})
+
+// 积分设置
+router.get('/points/settings', authenticate, async (req, res) => {
+  const user = (req as AuthenticatedRequest).user
+  const couple = await couplePoints.ensureCouple(user.id)
+  if (!couple) {
+    return res.status(403).json({ message: '未绑定情侣关系' })
+  }
+  const settings = await couplePoints.ensurePointSettings(couple.id)
+  res.json(settings)
+})
+
+router.patch('/points/settings', authenticate, async (req, res) => {
+  const user = (req as AuthenticatedRequest).user
+  const couple = await couplePoints.ensureCouple(user.id)
+  if (!couple) {
+    return res.status(403).json({ message: '未绑定情侣关系' })
+  }
+  const { baseScore, checkInReminder } = req.body
+  const data: { baseScore?: number; checkInReminder?: boolean } = {}
+  if (baseScore !== undefined) data.baseScore = Number(baseScore)
+  if (checkInReminder !== undefined)
+    data.checkInReminder = Boolean(checkInReminder)
+  const settings = await couplePoints.updatePointSettings(couple.id, data)
+  res.json(settings)
+})
+
+// 积分商城 - 列表
+router.get('/points/store', authenticate, async (req, res) => {
+  const user = (req as AuthenticatedRequest).user
+  const couple = await couplePoints.ensureCouple(user.id)
+  if (!couple) {
+    return res.status(403).json({ message: '未绑定情侣关系' })
+  }
+  const templates = await couplePoints.getStoreTemplates(couple.id, user.id)
+  res.json(templates)
+})
+
+// 积分商城 - 创建
+router.post('/points/store', authenticate, async (req, res) => {
+  const user = (req as AuthenticatedRequest).user
+  const couple = await couplePoints.ensureCouple(user.id)
+  if (!couple) {
+    return res.status(403).json({ message: '未绑定情侣关系' })
+  }
+  const { name, description, category, price, expiryDays } = req.body
+  if (!name || !category || price === undefined) {
+    return res.status(400).json({ message: '缺少必要参数' })
+  }
+  try {
+    const template = await couplePoints.createCouponTemplate(
+      couple.id,
+      user.id,
+      {
+        name,
+        description,
+        category,
+        price: Number(price),
+        expiryDays:
+          expiryDays === null || expiryDays === undefined
+            ? null
+            : Number(expiryDays)
+      }
+    )
+    res.json(template)
+  } catch (err) {
+    res
+      .status(400)
+      .json({ message: err instanceof Error ? err.message : '创建失败' })
+  }
+})
+
+// 积分商城 - 编辑
+router.patch('/points/store/:id', authenticate, async (req, res) => {
+  const user = (req as AuthenticatedRequest).user
+  const couple = await couplePoints.ensureCouple(user.id)
+  if (!couple) {
+    return res.status(403).json({ message: '未绑定情侣关系' })
+  }
+  const { name, description, category, price, expiryDays } = req.body
+  try {
+    const template = await couplePoints.updateCouponTemplate(
+      req.params.id,
+      couple.id,
+      {
+        name,
+        description,
+        category,
+        price: price !== undefined ? Number(price) : undefined,
+        expiryDays:
+          expiryDays === null || expiryDays === undefined
+            ? null
+            : Number(expiryDays)
+      }
+    )
+    res.json(template)
+  } catch (err) {
+    res
+      .status(400)
+      .json({ message: err instanceof Error ? err.message : '更新失败' })
+  }
+})
+
+// 积分商城 - 删除
+router.delete('/points/store/:id', authenticate, async (req, res) => {
+  const user = (req as AuthenticatedRequest).user
+  const couple = await couplePoints.ensureCouple(user.id)
+  if (!couple) {
+    return res.status(403).json({ message: '未绑定情侣关系' })
+  }
+  try {
+    await couplePoints.deleteCouponTemplate(req.params.id, couple.id)
+    res.json({ success: true })
+  } catch (err) {
+    res
+      .status(400)
+      .json({ message: err instanceof Error ? err.message : '删除失败' })
+  }
+})
+
+// 积分商城 - 购买
+router.post('/points/store/:id/buy', authenticate, async (req, res) => {
+  const user = (req as AuthenticatedRequest).user
+  const couple = await couplePoints.ensureCouple(user.id)
+  if (!couple) {
+    return res.status(403).json({ message: '未绑定情侣关系' })
+  }
+  try {
+    const coupon = await couplePoints.buyCoupon(
+      user.id,
+      couple.id,
+      req.params.id,
+      req.body.note
+    )
+    res.json(coupon)
+  } catch (err) {
+    res
+      .status(400)
+      .json({ message: err instanceof Error ? err.message : '购买失败' })
+  }
+})
+
+// 我的券
+router.get('/points/coupons', authenticate, async (req, res) => {
+  const user = (req as AuthenticatedRequest).user
+  const couple = await couplePoints.ensureCouple(user.id)
+  if (!couple) {
+    return res.status(403).json({ message: '未绑定情侣关系' })
+  }
+  const coupons = await couplePoints.getMyCoupons(user.id, couple.id)
+  res.json(coupons)
+})
+
+// 赠送券
+router.post('/points/coupons/:id/send', authenticate, async (req, res) => {
+  const user = (req as AuthenticatedRequest).user
+  const couple = await couplePoints.ensureCouple(user.id)
+  if (!couple) {
+    return res.status(403).json({ message: '未绑定情侣关系' })
+  }
+  try {
+    const result = await couplePoints.sendCoupon(
+      user.id,
+      couple.id,
+      req.params.id,
+      req.body.note
+    )
+    res.json(result)
+  } catch (err) {
+    res
+      .status(400)
+      .json({ message: err instanceof Error ? err.message : '赠送失败' })
+  }
+})
+
+// 使用券
+router.post('/points/coupons/:id/use', authenticate, async (req, res) => {
+  const user = (req as AuthenticatedRequest).user
+  const couple = await couplePoints.ensureCouple(user.id)
+  if (!couple) {
+    return res.status(403).json({ message: '未绑定情侣关系' })
+  }
+  try {
+    const coupon = await couplePoints.useCoupon(
+      user.id,
+      couple.id,
+      req.params.id
+    )
+    res.json(coupon)
+  } catch (err) {
+    res
+      .status(400)
+      .json({ message: err instanceof Error ? err.message : '使用失败' })
+  }
 })
 
 export default router

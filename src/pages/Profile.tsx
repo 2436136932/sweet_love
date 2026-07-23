@@ -709,6 +709,24 @@ export default function Profile({
               </span>
             </motion.button>
           </div>
+
+          {/* 管理员入口 */}
+          {user?.role === 'admin' && (
+            <div className="mb-4">
+              <motion.button
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  window.location.hash = '#/admin'
+                }}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 p-4 rounded-2xl flex items-center justify-center gap-2 text-white font-black text-sm uppercase tracking-widest shadow-lg shadow-purple-200 transition-all active:scale-95"
+              >
+                <Shield size={16} />
+                <span className="text-[10px] font-black uppercase tracking-widest leading-none">
+                  管理后台
+                </span>
+              </motion.button>
+            </div>
+          )}
         </div>
 
         {/* Edit Profile Modal */}
